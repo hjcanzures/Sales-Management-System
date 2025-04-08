@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { augmentedSales } from "@/lib/mockData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,19 +34,147 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Sale } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+
+interface SaleDetail {
+  prodcode: string;
+  quantity: number;
+  unitPrice?: number;
+  discount?: number;
+  subtotal?: number;
+  product?: {
+    description: string;
+  };
+}
+
+interface Sale {
+  transno: string;
+  salesdate: string;
+  custno: string;
+  empno: string;
+  customer?: {
+    custname: string;
+    address: string;
+  };
+  employee?: {
+    firstname: string;
+    lastname: string;
+    jobposition?: string;
+  };
+  payment?: {
+    amount: number;
+    paydate: string;
+  };
+  salesDetails?: SaleDetail[];
+  totalAmount?: number;
+  status?: string;
+}
 
 const Sales = () => {
   const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    // Set initial data
-    setSales(augmentedSales);
+    fetchSales();
   }, []);
+
+  const fetchSales = async () => {
+    try {
+      setLoading(true);
+      // Fetch sales with customer and employee information
+      const { data: salesData, error: salesError } = await supabase
+        .from('sales')
+        .select(`
+          transno,
+          salesdate,
+          custno,
+          empno,
+          customer:custno (custname, address),
+          employee:empno (firstname, lastname)
+        `);
+
+      if (salesError) {
+        console.error('Error fetching sales:', salesError);
+        return;
+      }
+
+      // For each sale, fetch payment details
+      const salesWithDetails = await Promise.all(
+        (salesData || []).map(async (sale) => {
+          // Get payment information
+          const { data: paymentData } = await supabase
+            .from('payment')
+            .select('amount, paydate')
+            .eq('transno', sale.transno)
+            .single();
+
+          // Get sales details with product information
+          const { data: detailsData } = await supabase
+            .from('salesdetail')
+            .select(`
+              prodcode,
+              quantity,
+              product:prodcode (description)
+            `)
+            .eq('transno', sale.transno);
+
+          // Get pricing information for products
+          const salesDetails = await Promise.all(
+            (detailsData || []).map(async (detail) => {
+              const { data: priceData } = await supabase
+                .from('pricehist')
+                .select('unitprice')
+                .eq('prodcode', detail.prodcode)
+                .order('effdate', { ascending: false })
+                .limit(1)
+                .single();
+
+              const unitPrice = priceData?.unitprice || 0;
+              const subtotal = (detail.quantity || 0) * unitPrice;
+              const discount = 0; // Default discount
+
+              return {
+                ...detail,
+                unitPrice,
+                subtotal,
+                discount
+              };
+            })
+          );
+
+          // Calculate total amount
+          const totalAmount = salesDetails.reduce((sum, detail) => sum + (detail.subtotal || 0), 0);
+
+          // Determine status based on payment (simple logic)
+          let status = 'pending';
+          if (paymentData && paymentData.amount >= totalAmount) {
+            status = 'completed';
+          } else if (!paymentData) {
+            status = 'pending';
+          }
+
+          return {
+            ...sale,
+            payment: paymentData || undefined,
+            salesDetails,
+            totalAmount,
+            status
+          };
+        })
+      );
+
+      setSales(salesWithDetails);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -70,19 +197,34 @@ const Sales = () => {
     }).format(value);
   };
 
+  // Format date
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString();
+  };
+
   // Filter sales based on search term and status
   const filteredSales = sales.filter((sale) => {
     const matchesSearch =
       searchTerm === "" ||
-      sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sale.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sale.employee?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      sale.transno.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (sale.customer?.custname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${sale.employee?.firstname || ''} ${sale.employee?.lastname || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || sale.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <span className="ml-2 text-lg">Loading sales...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -91,7 +233,7 @@ const Sales = () => {
           <h1 className="text-3xl font-bold">Sales</h1>
           <p className="text-gray-600 mt-1">Manage and view your sales records</p>
         </div>
-        <Button className="bg-sales-600 hover:bg-sales-700">
+        <Button className="bg-blue-600 hover:bg-blue-700">
           <PlusCircle className="mr-2 h-4 w-4" />
           New Sale
         </Button>
@@ -137,7 +279,7 @@ const Sales = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Sale ID</TableHead>
+                  <TableHead>Transaction #</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Employee</TableHead>
                   <TableHead>Date</TableHead>
@@ -149,15 +291,19 @@ const Sales = () => {
               <TableBody>
                 {filteredSales.length > 0 ? (
                   filteredSales.map((sale) => (
-                    <TableRow key={sale.id}>
-                      <TableCell>#{sale.id}</TableCell>
-                      <TableCell>{sale.customer?.name}</TableCell>
-                      <TableCell>{sale.employee?.name}</TableCell>
+                    <TableRow key={sale.transno}>
+                      <TableCell>#{sale.transno}</TableCell>
+                      <TableCell>{sale.customer?.custname || 'N/A'}</TableCell>
                       <TableCell>
-                        {sale.saleDate.toLocaleDateString()}
+                        {sale.employee 
+                          ? `${sale.employee.firstname || ''} ${sale.employee.lastname || ''}`
+                          : 'N/A'}
                       </TableCell>
                       <TableCell>
-                        {formatCurrency(sale.totalAmount)}
+                        {formatDate(sale.salesdate)}
+                      </TableCell>
+                      <TableCell>
+                        {sale.totalAmount !== undefined ? formatCurrency(sale.totalAmount) : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <span
@@ -222,7 +368,7 @@ const Sales = () => {
             <DialogHeader>
               <DialogTitle>Sale Details</DialogTitle>
               <DialogDescription>
-                Sale #{currentSale.id} details
+                Transaction #{currentSale.transno} details
               </DialogDescription>
             </DialogHeader>
             
@@ -232,7 +378,7 @@ const Sales = () => {
                 <div className="mt-2 bg-gray-50 p-4 rounded-lg">
                   <div className="grid grid-cols-2 gap-y-2">
                     <div className="text-sm font-medium">Date:</div>
-                    <div>{currentSale.saleDate.toLocaleDateString()}</div>
+                    <div>{formatDate(currentSale.salesdate)}</div>
                     <div className="text-sm font-medium">Status:</div>
                     <div>
                       <span
@@ -247,10 +393,12 @@ const Sales = () => {
                         {currentSale.status}
                       </span>
                     </div>
-                    <div className="text-sm font-medium">Payment Method:</div>
-                    <div>{currentSale.paymentMethod}</div>
+                    <div className="text-sm font-medium">Payment Date:</div>
+                    <div>{currentSale.payment ? formatDate(currentSale.payment.paydate) : 'Not paid'}</div>
                     <div className="text-sm font-medium">Total Amount:</div>
-                    <div className="font-bold">{formatCurrency(currentSale.totalAmount)}</div>
+                    <div className="font-bold">
+                      {currentSale.totalAmount !== undefined ? formatCurrency(currentSale.totalAmount) : 'N/A'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -260,14 +408,16 @@ const Sales = () => {
                 <div className="mt-2 bg-gray-50 p-4 rounded-lg">
                   <div className="mb-3">
                     <div className="text-sm font-medium text-gray-700">Customer:</div>
-                    <div>{currentSale.customer?.name}</div>
-                    <div className="text-xs text-gray-500">{currentSale.customer?.email}</div>
-                    <div className="text-xs text-gray-500">{currentSale.customer?.phone}</div>
+                    <div>{currentSale.customer?.custname || 'N/A'}</div>
+                    <div className="text-xs text-gray-500">{currentSale.customer?.address || 'No address'}</div>
                   </div>
                   <div>
                     <div className="text-sm font-medium text-gray-700">Handled by:</div>
-                    <div>{currentSale.employee?.name}</div>
-                    <div className="text-xs text-gray-500">{currentSale.employee?.position}</div>
+                    <div>
+                      {currentSale.employee 
+                        ? `${currentSale.employee.firstname || ''} ${currentSale.employee.lastname || ''}`
+                        : 'N/A'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -282,25 +432,25 @@ const Sales = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subtotal</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentSale.saleDetails?.map((detail) => (
-                      <tr key={detail.id}>
-                        <td className="px-4 py-3">{detail.product?.name}</td>
+                    {currentSale.salesDetails?.map((detail) => (
+                      <tr key={detail.prodcode}>
+                        <td className="px-4 py-3">{detail.product?.description || detail.prodcode}</td>
                         <td className="px-4 py-3">{detail.quantity}</td>
-                        <td className="px-4 py-3">{formatCurrency(detail.unitPrice)}</td>
-                        <td className="px-4 py-3">{formatCurrency(detail.discount)}</td>
-                        <td className="px-4 py-3 font-medium">{formatCurrency(detail.subtotal)}</td>
+                        <td className="px-4 py-3">{detail.unitPrice !== undefined ? formatCurrency(detail.unitPrice) : 'N/A'}</td>
+                        <td className="px-4 py-3 font-medium">{detail.subtotal !== undefined ? formatCurrency(detail.subtotal) : 'N/A'}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colSpan={4} className="px-4 py-3 text-right font-medium">Total:</td>
-                      <td className="px-4 py-3 font-bold">{formatCurrency(currentSale.totalAmount)}</td>
+                      <td colSpan={3} className="px-4 py-3 text-right font-medium">Total:</td>
+                      <td className="px-4 py-3 font-bold">
+                        {currentSale.totalAmount !== undefined ? formatCurrency(currentSale.totalAmount) : 'N/A'}
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
