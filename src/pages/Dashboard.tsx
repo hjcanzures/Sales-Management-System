@@ -5,8 +5,25 @@ import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { augmentedSales, products, customers, employees } from "@/lib/mockData";
 import { DollarSign, Users, Package, User, ArrowUp, ArrowDown } from "lucide-react";
 
+// Define proper types for our sales data
+interface MonthlySale {
+  month: string;
+  amount: number;
+}
+
+interface ProductSale {
+  name: string;
+  sales: number;
+}
+
+interface SalesData {
+  monthlySales: MonthlySale[];
+  productSales: ProductSale[];
+}
+
 const Dashboard = () => {
-  const [salesData, setSalesData] = useState([]);
+  // Use the proper type for the state
+  const [salesData, setSalesData] = useState<SalesData>({ monthlySales: [], productSales: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
