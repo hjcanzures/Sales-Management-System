@@ -10,6 +10,11 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
+import Customers from "./pages/Customers";
+import Products from "./pages/Products";
+import Employees from "./pages/Employees";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 // Protected Route Component
@@ -47,6 +52,11 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
             <Route path="/sales" element={<ProtectedRoute element={<Sales />} />} />
+            <Route path="/customers" element={<ProtectedRoute element={<Customers />} />} />
+            <Route path="/products" element={<ProtectedRoute element={<Products />} />} />
+            <Route path="/employees" element={<ProtectedRoute element={<Employees />} />} />
+            <Route path="/reports" element={<ProtectedRoute element={<Reports />} />} />
+            <Route path="/settings" element={<ProtectedRoute element={<Settings />} />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
