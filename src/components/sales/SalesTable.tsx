@@ -1,4 +1,3 @@
-
 import { Sale } from "@/types";
 import {
   Table,
@@ -9,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Eye } from "lucide-react";
+import { ChevronDown, Eye, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,13 +18,49 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { DeleteSaleDialog } from "./DeleteSaleDialog";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SalesTableProps {
   sales: Sale[];
   onViewDetails: (sale: Sale) => void;
+  onSaleDeleted: () => void;
 }
 
-export const SalesTable = ({ sales, onViewDetails }: SalesTableProps) => {
+export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTableProps) => {
+  const [saleToDelete, setSaleToDelete] = useState<Sale | null>(null);
+  const { toast } = useToast();
+
+  const handleDeleteSale = async () => {
+    if (!saleToDelete?.transno) return;
+
+    try {
+      const { error } = await supabase
+        .from('sales')
+        .delete()
+        .eq('transno', saleToDelete.transno);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Sale #${saleToDelete.transno} has been deleted`,
+      });
+
+      onSaleDeleted();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaleToDelete(null);
+    }
+  };
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -85,7 +120,11 @@ export const SalesTable = ({ sales, onViewDetails }: SalesTableProps) => {
                       <DropdownMenuItem>
                         Edit Sale
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-red-600">
+                      <DropdownMenuItem 
+                        className="text-red-600"
+                        onClick={() => setSaleToDelete(sale)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
                         Delete Sale
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -102,6 +141,13 @@ export const SalesTable = ({ sales, onViewDetails }: SalesTableProps) => {
           )}
         </TableBody>
       </Table>
+
+      <DeleteSaleDialog
+        isOpen={!!saleToDelete}
+        onClose={() => setSaleToDelete(null)}
+        onConfirm={handleDeleteSale}
+        saleNumber={saleToDelete?.transno || ''}
+      />
     </div>
   );
 };

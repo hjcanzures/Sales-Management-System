@@ -30,6 +30,110 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_payment: {
+        Row: {
+          amount: number | null
+          deleted_at: string | null
+          id: string
+          orno: string | null
+          paydate: string | null
+          transno: string | null
+        }
+        Insert: {
+          amount?: number | null
+          deleted_at?: string | null
+          id?: string
+          orno?: string | null
+          paydate?: string | null
+          transno?: string | null
+        }
+        Update: {
+          amount?: number | null
+          deleted_at?: string | null
+          id?: string
+          orno?: string | null
+          paydate?: string | null
+          transno?: string | null
+        }
+        Relationships: []
+      }
+      deleted_sales: {
+        Row: {
+          custno: string | null
+          deleted_at: string | null
+          empno: string | null
+          id: string
+          metadata: Json | null
+          salesdate: string | null
+          transno: string
+        }
+        Insert: {
+          custno?: string | null
+          deleted_at?: string | null
+          empno?: string | null
+          id?: string
+          metadata?: Json | null
+          salesdate?: string | null
+          transno: string
+        }
+        Update: {
+          custno?: string | null
+          deleted_at?: string | null
+          empno?: string | null
+          id?: string
+          metadata?: Json | null
+          salesdate?: string | null
+          transno?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deleted_sales_custno_fkey"
+            columns: ["custno"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["custno"]
+          },
+          {
+            foreignKeyName: "deleted_sales_empno_fkey"
+            columns: ["empno"]
+            isOneToOne: false
+            referencedRelation: "employee"
+            referencedColumns: ["empno"]
+          },
+        ]
+      }
+      deleted_salesdetail: {
+        Row: {
+          deleted_at: string | null
+          id: string
+          prodcode: string | null
+          quantity: number | null
+          transno: string
+        }
+        Insert: {
+          deleted_at?: string | null
+          id?: string
+          prodcode?: string | null
+          quantity?: number | null
+          transno: string
+        }
+        Update: {
+          deleted_at?: string | null
+          id?: string
+          prodcode?: string | null
+          quantity?: number | null
+          transno?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deleted_salesdetail_prodcode_fkey"
+            columns: ["prodcode"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["prodcode"]
+          },
+        ]
+      }
       department: {
         Row: {
           deptcode: string

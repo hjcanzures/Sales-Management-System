@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { NewSaleDialog } from "@/components/NewSaleDialog";
 import { SearchAndFilter } from "@/components/sales/SearchAndFilter";
 import { SalesTable } from "@/components/sales/SalesTable";
 import { SaleDetailsModal } from "@/components/sales/SaleDetailsModal";
+import { DeletedSalesList } from "@/components/sales/DeletedSalesList";
 import type { Sale } from "@/types";
 
 const Sales = () => {
@@ -177,7 +177,10 @@ const Sales = () => {
           <SalesTable
             sales={filteredSales}
             onViewDetails={viewSaleDetails}
+            onSaleDeleted={fetchSales}
           />
+
+          <DeletedSalesList onSaleRestored={fetchSales} />
         </CardContent>
       </Card>
 
