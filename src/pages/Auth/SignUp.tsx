@@ -1,23 +1,46 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-const Login = () => {
+const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { login, loading } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(email, password);
-    if (success) {
-      navigate("/dashboard");
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Registration successful",
+        description: "Please check your email to confirm your account.",
+      });
+      
+      navigate("/login");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -26,24 +49,22 @@ const Login = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-sales-700">Sales Management System</h1>
-          <p className="text-gray-600 mt-2">Sign in to access your dashboard</p>
+          <p className="text-gray-600 mt-2">Create your account</p>
         </div>
         
         <Card>
           <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your account
-            </CardDescription>
+            <CardTitle>Sign Up</CardTitle>
+            <CardDescription>Enter your details to create an account</CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSignUp}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input 
+                <Input
                   id="email"
-                  type="email" 
-                  placeholder="name@example.com" 
+                  type="email"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -51,10 +72,10 @@ const Login = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input 
+                <Input
                   id="password"
-                  type="password" 
-                  placeholder="••••••••" 
+                  type="password"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -62,43 +83,25 @@ const Login = () => {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? "Creating account..." : "Create account"}
               </Button>
-              <div className="flex flex-col space-y-2 text-center text-sm">
-                <Button 
-                  variant="link" 
-                  className="p-0"
-                  onClick={() => navigate("/forgot-password")}
-                >
-                  Forgot password?
+              <p className="text-sm text-gray-600">
+                Already have an account?{" "}
+                <Button variant="link" className="p-0" onClick={() => navigate("/login")}>
+                  Sign in
                 </Button>
-                <p className="text-gray-600">
-                  Don't have an account?{" "}
-                  <Button 
-                    variant="link" 
-                    className="p-0"
-                    onClick={() => navigate("/signup")}
-                  >
-                    Sign up
-                  </Button>
-                </p>
-              </div>
+              </p>
             </CardFooter>
           </form>
         </Card>
-        
-        <div className="mt-4 text-center text-sm text-gray-600">
-          <p>Demo Credentials:</p>
-          <p>Email: admin@example.com | Password: password</p>
-        </div>
       </div>
     </div>
   );
 };
 
-export default Login;
+export default SignUp;
