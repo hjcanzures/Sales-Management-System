@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { NewSaleDialog } from "@/components/NewSaleDialog";
 
 interface SaleDetail {
   prodcode: string;
@@ -78,6 +78,7 @@ const Sales = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isNewSaleDialogOpen, setIsNewSaleDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchSales();
@@ -176,6 +177,10 @@ const Sales = () => {
     }
   };
 
+  const handleNewSale = () => {
+    setIsNewSaleDialogOpen(true);
+  };
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
@@ -233,10 +238,11 @@ const Sales = () => {
           <h1 className="text-3xl font-bold">Sales</h1>
           <p className="text-gray-600 mt-1">Manage and view your sales records</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Sale
-        </Button>
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleNewSale}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            New Sale
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -466,6 +472,12 @@ const Sales = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      <NewSaleDialog 
+        isOpen={isNewSaleDialogOpen}
+        onClose={() => setIsNewSaleDialogOpen(false)}
+        onSaleCreated={fetchSales}
+      />
     </div>
   );
 };

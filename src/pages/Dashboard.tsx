@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -53,11 +52,8 @@ const Dashboard = () => {
     setLoading(false);
   }, []);
 
-  // Calculate KPIs
+  // Calculate KPIs - simplified
   const totalSales = augmentedSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-  const totalCustomers = customers.length;
-  const totalProducts = products.length;
-  const totalEmployees = employees.length;
 
   // Format currency
   const formatCurrency = (value) => {
@@ -83,8 +79,8 @@ const Dashboard = () => {
         <p className="text-gray-600 mt-2">Welcome to your sales management dashboard</p>
       </div>
       
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards - only sales */}
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -98,59 +94,6 @@ const Dashboard = () => {
               </div>
               <div className="bg-sales-100 p-3 rounded-full">
                 <DollarSign className="h-6 w-6 text-sales-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Customers</p>
-                <h3 className="text-2xl font-bold mt-1">{totalCustomers}</h3>
-                <div className="flex items-center mt-1 text-sm font-medium text-green-600">
-                  <ArrowUp className="h-4 w-4 mr-1" />
-                  <span>5% from last month</span>
-                </div>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-full">
-                <Users className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Products</p>
-                <h3 className="text-2xl font-bold mt-1">{totalProducts}</h3>
-                <div className="flex items-center mt-1 text-sm font-medium text-amber-600">
-                  <ArrowUp className="h-4 w-4 mr-1" />
-                  <span>2% from last month</span>
-                </div>
-              </div>
-              <div className="bg-amber-100 p-3 rounded-full">
-                <Package className="h-6 w-6 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Employees</p>
-                <h3 className="text-2xl font-bold mt-1">{totalEmployees}</h3>
-                <div className="flex items-center mt-1 text-sm font-medium text-gray-600">
-                  <span>No change</span>
-                </div>
-              </div>
-              <div className="bg-purple-100 p-3 rounded-full">
-                <User className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
