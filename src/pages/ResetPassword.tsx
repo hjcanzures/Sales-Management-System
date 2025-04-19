@@ -8,28 +8,26 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const SignUp = () => {
-  const [email, setEmail] = useState("");
+const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
+      const { error } = await supabase.auth.updateUser({
+        password: password
       });
 
       if (error) throw error;
 
       toast({
-        title: "Registration successful",
-        description: "Please check your email to confirm your account.",
+        title: "Password updated",
+        description: "Your password has been successfully updated.",
       });
       
       navigate("/login");
@@ -49,29 +47,18 @@ const SignUp = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-sales-700">Sales Management System</h1>
-          <p className="text-gray-600 mt-2">Create your account</p>
+          <p className="text-gray-600 mt-2">Create a new password</p>
         </div>
         
         <Card>
           <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
-            <CardDescription>Enter your details to create an account</CardDescription>
+            <CardTitle>Reset Password</CardTitle>
+            <CardDescription>Enter your new password</CardDescription>
           </CardHeader>
-          <form onSubmit={handleSignUp}>
+          <form onSubmit={handlePasswordReset}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">New Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -88,25 +75,14 @@ const SignUp = () => {
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? "Creating account..." : "Create account"}
+                {loading ? "Updating password..." : "Update password"}
               </Button>
-              <p className="text-sm text-gray-600">
-                Already have an account?{" "}
-                <Button variant="link" className="p-0" onClick={() => navigate("/login")}>
-                  Sign in
-                </Button>
-              </p>
             </CardFooter>
           </form>
         </Card>
-        
-        <div className="mt-4 text-center text-sm text-gray-600">
-          <p>Demo Credentials:</p>
-          <p>Email: admin@example.com | Password: password</p>
-        </div>
       </div>
     </div>
   );
 };
 
-export default SignUp;
+export default ResetPassword;

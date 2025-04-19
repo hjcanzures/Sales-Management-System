@@ -8,28 +8,26 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-const SignUp = () => {
+const ForgotPassword = () => {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) throw error;
 
       toast({
-        title: "Registration successful",
-        description: "Please check your email to confirm your account.",
+        title: "Password reset email sent",
+        description: "Please check your email for the password reset link.",
       });
       
       navigate("/login");
@@ -49,15 +47,15 @@ const SignUp = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-sales-700">Sales Management System</h1>
-          <p className="text-gray-600 mt-2">Create your account</p>
+          <p className="text-gray-600 mt-2">Reset your password</p>
         </div>
         
         <Card>
           <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
-            <CardDescription>Enter your details to create an account</CardDescription>
+            <CardTitle>Forgot Password</CardTitle>
+            <CardDescription>Enter your email to reset your password</CardDescription>
           </CardHeader>
-          <form onSubmit={handleSignUp}>
+          <form onSubmit={handleResetPassword}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -70,17 +68,6 @@ const SignUp = () => {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
               <Button
@@ -88,10 +75,10 @@ const SignUp = () => {
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? "Creating account..." : "Create account"}
+                {loading ? "Sending reset link..." : "Send reset link"}
               </Button>
               <p className="text-sm text-gray-600">
-                Already have an account?{" "}
+                Remember your password?{" "}
                 <Button variant="link" className="p-0" onClick={() => navigate("/login")}>
                   Sign in
                 </Button>
@@ -99,14 +86,9 @@ const SignUp = () => {
             </CardFooter>
           </form>
         </Card>
-        
-        <div className="mt-4 text-center text-sm text-gray-600">
-          <p>Demo Credentials:</p>
-          <p>Email: admin@example.com | Password: password</p>
-        </div>
       </div>
     </div>
   );
 };
 
-export default SignUp;
+export default ForgotPassword;
