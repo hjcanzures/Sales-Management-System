@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -238,11 +239,10 @@ const Sales = () => {
           <h1 className="text-3xl font-bold">Sales</h1>
           <p className="text-gray-600 mt-1">Manage and view your sales records</p>
         </div>
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleNewSale}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            New Sale
-          </Button>
-        </div>
+        <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleNewSale}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          New Sale
+        </Button>
       </div>
 
       <Card>
