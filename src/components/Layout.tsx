@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,24 +49,6 @@ const Layout = ({ children }: LayoutProps) => {
       icon: <ShoppingCart className="h-5 w-5" />,
       path: "/sales",
       id: "sales"
-    },
-    {
-      name: "Customers",
-      icon: <Users className="h-5 w-5" />,
-      path: "/customers",
-      id: "customers"
-    },
-    {
-      name: "Products",
-      icon: <Package className="h-5 w-5" />,
-      path: "/products",
-      id: "products"
-    },
-    {
-      name: "Employees",
-      icon: <User className="h-5 w-5" />,
-      path: "/employees",
-      id: "employees"
     },
     {
       name: "Reports",
