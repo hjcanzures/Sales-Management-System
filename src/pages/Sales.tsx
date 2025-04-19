@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,7 @@ const Sales = () => {
             salesDetails,
             totalAmount,
             status
-          };
+          } as Sale;
         })
       );
 
@@ -129,7 +130,7 @@ const Sales = () => {
   const filteredSales = sales.filter((sale) => {
     const matchesSearch =
       searchTerm === "" ||
-      sale.transno.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (sale.transno?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (sale.customer?.custname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       `${sale.employee?.firstname || ''} ${sale.employee?.lastname || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
 
