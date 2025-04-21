@@ -4,16 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/utils";
+import { Json } from "@/integrations/supabase/types";
 
 interface DeletedSale {
   id: string;
   transno: string;
   salesdate: string;
-  metadata: {
-    customer: { custname: string };
-    employee: { firstname: string; lastname: string };
-  };
+  metadata: Json;
   deleted_at: string;
+  custno?: string;
+  empno?: string;
 }
 
 export const DeletedSalesList = ({ onSaleRestored }: { onSaleRestored: () => void }) => {
@@ -116,25 +116,36 @@ export const DeletedSalesList = ({ onSaleRestored }: { onSaleRestored: () => voi
     <div className="mt-4 border rounded-lg p-4">
       <h3 className="text-lg font-semibold mb-4">Recently Deleted Sales</h3>
       <div className="space-y-4">
-        {deletedSales.map((sale) => (
-          <div key={sale.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
-            <div>
-              <p className="font-medium">#{sale.transno}</p>
-              <p className="text-sm text-gray-600">
-                {sale.metadata?.customer?.custname} - {formatDate(sale.salesdate)}
-              </p>
-              <p className="text-xs text-gray-500">
-                Deleted {new Date(sale.deleted_at).toLocaleString()}
-              </p>
+        {deletedSales.map((sale) => {
+          // Safe access to metadata properties
+          const customerName = sale.metadata && typeof sale.metadata === 'object' 
+            ? (sale.metadata as any)?.customer?.custname || 'Unknown Customer' 
+            : 'Unknown Customer';
+          
+          const employeeName = sale.metadata && typeof sale.metadata === 'object'
+            ? `${(sale.metadata as any)?.employee?.firstname || ''} ${(sale.metadata as any)?.employee?.lastname || ''}`.trim() || 'Unknown Employee'
+            : 'Unknown Employee';
+            
+          return (
+            <div key={sale.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+              <div>
+                <p className="font-medium">#{sale.transno}</p>
+                <p className="text-sm text-gray-600">
+                  {customerName} - {formatDate(sale.salesdate)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Deleted {new Date(sale.deleted_at).toLocaleString()}
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => handleRestore(sale.transno)}
+              >
+                Restore
+              </Button>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => handleRestore(sale.transno)}
-            >
-              Restore
-            </Button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
