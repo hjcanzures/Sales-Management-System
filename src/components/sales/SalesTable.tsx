@@ -1,3 +1,4 @@
+
 import { Sale } from "@/types";
 import {
   Table,
@@ -37,12 +38,29 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
     if (!saleToDelete?.transno) return;
 
     try {
-      const { error } = await supabase
+      // First delete the related salesdetails
+      const { error: detailsError } = await supabase
+        .from('salesdetail')
+        .delete()
+        .eq('transno', saleToDelete.transno);
+        
+      if (detailsError) throw detailsError;
+      
+      // Then delete any related payments
+      const { error: paymentError } = await supabase
+        .from('payment')
+        .delete()
+        .eq('transno', saleToDelete.transno);
+        
+      if (paymentError) throw paymentError;
+      
+      // Finally delete the sale itself
+      const { error: salesError } = await supabase
         .from('sales')
         .delete()
         .eq('transno', saleToDelete.transno);
 
-      if (error) throw error;
+      if (salesError) throw salesError;
 
       toast({
         title: "Success",

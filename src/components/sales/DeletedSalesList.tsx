@@ -16,6 +16,24 @@ interface DeletedSale {
   empno?: string;
 }
 
+interface CustomerMetadata {
+  custname?: string;
+  address?: string;
+  [key: string]: any;
+}
+
+interface EmployeeMetadata {
+  firstname?: string;
+  lastname?: string;
+  [key: string]: any;
+}
+
+interface SaleMetadata {
+  customer?: CustomerMetadata;
+  employee?: EmployeeMetadata;
+  [key: string]: any;
+}
+
 export const DeletedSalesList = ({ onSaleRestored }: { onSaleRestored: () => void }) => {
   const [deletedSales, setDeletedSales] = useState<DeletedSale[]>([]);
   const { toast } = useToast();
@@ -40,6 +58,24 @@ export const DeletedSalesList = ({ onSaleRestored }: { onSaleRestored: () => voi
     }
 
     setDeletedSales(data || []);
+  };
+
+  const getCustomerName = (metadata: Json): string => {
+    if (metadata && typeof metadata === 'object') {
+      const saleMetadata = metadata as SaleMetadata;
+      return saleMetadata?.customer?.custname || 'Unknown Customer';
+    }
+    return 'Unknown Customer';
+  };
+
+  const getEmployeeName = (metadata: Json): string => {
+    if (metadata && typeof metadata === 'object') {
+      const saleMetadata = metadata as SaleMetadata;
+      const firstName = saleMetadata?.employee?.firstname || '';
+      const lastName = saleMetadata?.employee?.lastname || '';
+      return `${firstName} ${lastName}`.trim() || 'Unknown Employee';
+    }
+    return 'Unknown Employee';
   };
 
   const handleRestore = async (transno: string) => {
@@ -116,36 +152,25 @@ export const DeletedSalesList = ({ onSaleRestored }: { onSaleRestored: () => voi
     <div className="mt-4 border rounded-lg p-4">
       <h3 className="text-lg font-semibold mb-4">Recently Deleted Sales</h3>
       <div className="space-y-4">
-        {deletedSales.map((sale) => {
-          // Safe access to metadata properties
-          const customerName = sale.metadata && typeof sale.metadata === 'object' 
-            ? (sale.metadata as any)?.customer?.custname || 'Unknown Customer' 
-            : 'Unknown Customer';
-          
-          const employeeName = sale.metadata && typeof sale.metadata === 'object'
-            ? `${(sale.metadata as any)?.employee?.firstname || ''} ${(sale.metadata as any)?.employee?.lastname || ''}`.trim() || 'Unknown Employee'
-            : 'Unknown Employee';
-            
-          return (
-            <div key={sale.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
-              <div>
-                <p className="font-medium">#{sale.transno}</p>
-                <p className="text-sm text-gray-600">
-                  {customerName} - {formatDate(sale.salesdate)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Deleted {new Date(sale.deleted_at).toLocaleString()}
-                </p>
-              </div>
-              <Button 
-                variant="outline" 
-                onClick={() => handleRestore(sale.transno)}
-              >
-                Restore
-              </Button>
+        {deletedSales.map((sale) => (
+          <div key={sale.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+            <div>
+              <p className="font-medium">#{sale.transno}</p>
+              <p className="text-sm text-gray-600">
+                {getCustomerName(sale.metadata)} - {formatDate(sale.salesdate)}
+              </p>
+              <p className="text-xs text-gray-500">
+                Deleted {new Date(sale.deleted_at).toLocaleString()}
+              </p>
             </div>
-          );
-        })}
+            <Button 
+              variant="outline" 
+              onClick={() => handleRestore(sale.transno)}
+            >
+              Restore
+            </Button>
+          </div>
+        ))}
       </div>
     </div>
   );
