@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Eye, Trash2 } from "lucide-react";
+import { ChevronDown, Eye, Trash2, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +80,14 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
     }
   };
 
+  const handleEditSale = (sale: Sale) => {
+    toast({
+      title: "Edit Sale",
+      description: `Edit functionality for Sale #${sale.transno} will be implemented soon`,
+    });
+    // In a real implementation, this would open an edit form or modal
+  };
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -97,7 +105,11 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
         <TableBody>
           {sales.length > 0 ? (
             sales.map((sale) => (
-              <TableRow key={sale.transno}>
+              <TableRow 
+                key={sale.transno}
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={() => onViewDetails(sale)}
+              >
                 <TableCell>#{sale.transno}</TableCell>
                 <TableCell>{sale.customer?.custname || 'N/A'}</TableCell>
                 <TableCell>
@@ -122,7 +134,7 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
                     {sale.status}
                   </span>
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
@@ -136,7 +148,8 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditSale(sale)}>
+                        <Pencil className="mr-2 h-4 w-4" />
                         Edit Sale
                       </DropdownMenuItem>
                       <DropdownMenuItem 

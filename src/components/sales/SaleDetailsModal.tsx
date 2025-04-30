@@ -6,9 +6,12 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { X, Printer } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface SaleDetailsModalProps {
   sale: Sale | null;
@@ -17,16 +20,31 @@ interface SaleDetailsModalProps {
 }
 
 export const SaleDetailsModal = ({ sale, isOpen, onClose }: SaleDetailsModalProps) => {
+  const { toast } = useToast();
+  
   if (!sale) return null;
+
+  const handlePrint = () => {
+    toast({
+      title: "Print requested",
+      description: "Print functionality will be implemented soon",
+    });
+    // In a real implementation, this would trigger the print functionality
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>Sale Details</DialogTitle>
-          <DialogDescription>
-            Transaction #{sale.transno} details
-          </DialogDescription>
+      <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]">
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <div>
+            <DialogTitle>Sale Details</DialogTitle>
+            <DialogDescription>
+              Transaction #{sale.transno} details
+            </DialogDescription>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full">
+            <X className="h-4 w-4" />
+          </Button>
         </DialogHeader>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
@@ -114,12 +132,15 @@ export const SaleDetailsModal = ({ sale, isOpen, onClose }: SaleDetailsModalProp
           </div>
         </div>
         
-        <div className="flex justify-end mt-4 space-x-2">
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button>Print Invoice</Button>
-        </div>
+          <Button onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print Invoice
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
