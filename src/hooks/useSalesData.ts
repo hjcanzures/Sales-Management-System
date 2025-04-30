@@ -1,15 +1,13 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Sale } from "@/types";
-import { useToast } from "@/hooks/use-toast";
 
 export const useSalesData = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
-  const fetchSales = useCallback(async () => {
+  const fetchSales = async () => {
     try {
       setLoading(true);
       const { data: salesData, error: salesError } = await supabase
@@ -24,24 +22,19 @@ export const useSalesData = () => {
         `);
 
       if (salesError) {
-        throw salesError;
+        console.error('Error fetching sales:', salesError);
+        return;
       }
 
       const salesWithDetails = await Promise.all(
         (salesData || []).map(async (sale) => {
-          // Get payment data
-          const { data: paymentData, error: paymentError } = await supabase
+          const { data: paymentData } = await supabase
             .from('payment')
             .select('amount, paydate')
             .eq('transno', sale.transno)
             .single();
 
-          if (paymentError && paymentError.code !== 'PGRST116') { // PGRST116 is "No rows returned"
-            console.error('Error fetching payment:', paymentError);
-          }
-
-          // Get sales details
-          const { data: detailsData, error: detailsError } = await supabase
+          const { data: detailsData } = await supabase
             .from('salesdetail')
             .select(`
               prodcode,
@@ -50,15 +43,9 @@ export const useSalesData = () => {
             `)
             .eq('transno', sale.transno);
 
-          if (detailsError) {
-            console.error('Error fetching sales details:', detailsError);
-            return null;
-          }
-
-          // Calculate sale totals with price data
           const salesDetails = await Promise.all(
             (detailsData || []).map(async (detail) => {
-              const { data: priceData, error: priceError } = await supabase
+              const { data: priceData } = await supabase
                 .from('pricehist')
                 .select('unitprice')
                 .eq('prodcode', detail.prodcode)
@@ -66,28 +53,26 @@ export const useSalesData = () => {
                 .limit(1)
                 .single();
 
-              if (priceError && priceError.code !== 'PGRST116') {
-                console.error('Error fetching price:', priceError);
-              }
-
               const unitPrice = priceData?.unitprice || 0;
               const subtotal = (detail.quantity || 0) * unitPrice;
+              const discount = 0;
 
               return {
                 ...detail,
                 unitPrice,
                 subtotal,
-                discount: 0
+                discount
               };
             })
           );
 
           const totalAmount = salesDetails.reduce((sum, detail) => sum + (detail.subtotal || 0), 0);
 
-          // Determine status based on payment
           let status = 'pending';
           if (paymentData && paymentData.amount >= totalAmount) {
             status = 'completed';
+          } else if (!paymentData) {
+            status = 'pending';
           }
 
           return {
@@ -100,24 +85,17 @@ export const useSalesData = () => {
         })
       );
 
-      // Filter out any null items from failed processing
-      const validSales = salesWithDetails.filter(Boolean) as Sale[];
-      setSales(validSales);
-    } catch (error: any) {
-      console.error('Error fetching sales:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load sales data. Please try again.",
-        variant: "destructive",
-      });
+      setSales(salesWithDetails);
+    } catch (error) {
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  };
 
   useEffect(() => {
     fetchSales();
-  }, [fetchSales]);
+  }, []);
 
   return { sales, loading, fetchSales };
 };

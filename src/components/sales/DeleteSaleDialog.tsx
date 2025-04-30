@@ -9,7 +9,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
 
 interface DeleteSaleDialogProps {
   isOpen: boolean;
@@ -24,16 +23,8 @@ export const DeleteSaleDialog = ({
   onConfirm, 
   saleNumber 
 }: DeleteSaleDialogProps) => {
-  const [processing, setProcessing] = useState(false);
-  
-  const handleConfirm = () => {
-    setProcessing(true);
-    onConfirm();
-    setProcessing(false);
-  };
-
   return (
-    <AlertDialog open={isOpen} onOpenChange={processing ? undefined : onClose}>
+    <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Sale</AlertDialogTitle>
@@ -42,10 +33,8 @@ export const DeleteSaleDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={processing} onClick={onClose}>Cancel</AlertDialogCancel>
-          <AlertDialogAction disabled={processing} onClick={handleConfirm}>
-            {processing ? "Deleting..." : "Delete"}
-          </AlertDialogAction>
+          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Delete</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -28,21 +28,8 @@ const Sales = () => {
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    // Small delay to ensure modal is fully closed before clearing the data
-    setTimeout(() => {
-      setCurrentSale(null);
-    }, 300);
-  };
-
   const handleNewSale = () => {
     setIsNewSaleDialogOpen(true);
-  };
-
-  const handleSaleCreated = () => {
-    fetchSales();
-    setIsNewSaleDialogOpen(false);
   };
 
   return (
@@ -63,13 +50,13 @@ const Sales = () => {
       <SaleDetailsModal
         sale={currentSale}
         isOpen={isModalOpen}
-        onClose={handleCloseModal}
+        onClose={() => setIsModalOpen(false)}
       />
 
       <NewSaleDialog 
         isOpen={isNewSaleDialogOpen}
         onClose={() => setIsNewSaleDialogOpen(false)}
-        onSaleCreated={handleSaleCreated}
+        onSaleCreated={fetchSales}
       />
     </div>
   );
