@@ -80,12 +80,26 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
     }
   };
 
-  const handleEditSale = (sale: Sale) => {
+  const handleEditSale = (sale: Sale, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click
     toast({
       title: "Edit Sale",
       description: `Edit functionality for Sale #${sale.transno} will be implemented soon`,
     });
-    // In a real implementation, this would open an edit form or modal
+  };
+
+  const handleRowClick = (sale: Sale) => {
+    onViewDetails(sale);
+  };
+
+  const handleViewDetailsClick = (sale: Sale, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering row click
+    onViewDetails(sale);
+  };
+
+  const handleDeleteClick = (sale: Sale, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering row click
+    setSaleToDelete(sale);
   };
 
   return (
@@ -107,8 +121,8 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
             sales.map((sale) => (
               <TableRow 
                 key={sale.transno}
-                className="hover:bg-gray-50 cursor-pointer"
-                onClick={() => onViewDetails(sale)}
+                className="hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => handleRowClick(sale)}
               >
                 <TableCell>#{sale.transno}</TableCell>
                 <TableCell>{sale.customer?.custname || 'N/A'}</TableCell>
@@ -144,17 +158,17 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onViewDetails(sale)}>
+                      <DropdownMenuItem onClick={(e) => handleViewDetailsClick(sale, e)}>
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEditSale(sale)}>
+                      <DropdownMenuItem onClick={(e) => handleEditSale(sale, e)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit Sale
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         className="text-red-600"
-                        onClick={() => setSaleToDelete(sale)}
+                        onClick={(e) => handleDeleteClick(sale, e)}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Sale

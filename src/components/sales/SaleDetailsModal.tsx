@@ -34,7 +34,7 @@ export const SaleDetailsModal = ({ sale, isOpen, onClose }: SaleDetailsModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]">
+      <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]" onInteractOutside={onClose} onEscapeKeyDown={onClose}>
         <DialogHeader className="flex flex-row items-center justify-between">
           <div>
             <DialogTitle>Sale Details</DialogTitle>
