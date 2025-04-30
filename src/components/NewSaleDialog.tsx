@@ -26,6 +26,15 @@ export const NewSaleDialog = ({ isOpen, onClose, onSaleCreated }: NewSaleDialogP
   
   const { toast } = useToast();
 
+  // Reset form state when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedCustomer("");
+      setSelectedEmployee("");
+      setSelectedProducts([]);
+    }
+  }, [isOpen]);
+
   // Fetch customers, employees and products on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -78,6 +87,26 @@ export const NewSaleDialog = ({ isOpen, onClose, onSaleCreated }: NewSaleDialogP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!selectedCustomer || !selectedEmployee || selectedProducts.length === 0) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const invalidProducts = selectedProducts.filter(p => !p.prodcode || p.quantity <= 0);
+    if (invalidProducts.length > 0) {
+      toast({
+        title: "Invalid products",
+        description: "Please select valid products and quantities",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -130,9 +159,15 @@ export const NewSaleDialog = ({ isOpen, onClose, onSaleCreated }: NewSaleDialogP
     }
   };
 
+  const handleClose = () => {
+    if (!loading) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-3xl" onInteractOutside={loading ? (e) => e.preventDefault() : undefined} onEscapeKeyDown={loading ? (e) => e.preventDefault() : undefined}>
         <DialogHeader>
           <DialogTitle>New Sale</DialogTitle>
         </DialogHeader>
@@ -208,7 +243,7 @@ export const NewSaleDialog = ({ isOpen, onClose, onSaleCreated }: NewSaleDialogP
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose} type="button">
+            <Button variant="outline" onClick={handleClose} type="button" disabled={loading}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
