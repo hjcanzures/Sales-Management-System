@@ -75,6 +75,8 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
         description: error.message || "Failed to delete sale",
         variant: "destructive",
       });
+    } finally {
+      setSaleToDelete(null);
     }
   };
 

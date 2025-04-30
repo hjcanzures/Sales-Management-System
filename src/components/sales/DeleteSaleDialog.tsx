@@ -26,14 +26,10 @@ export const DeleteSaleDialog = ({
 }: DeleteSaleDialogProps) => {
   const [processing, setProcessing] = useState(false);
   
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     setProcessing(true);
-    try {
-      await onConfirm();
-    } finally {
-      setProcessing(false);
-      onClose();
-    }
+    onConfirm();
+    setProcessing(false);
   };
 
   return (
@@ -46,7 +42,7 @@ export const DeleteSaleDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={processing}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={processing} onClick={onClose}>Cancel</AlertDialogCancel>
           <AlertDialogAction disabled={processing} onClick={handleConfirm}>
             {processing ? "Deleting..." : "Delete"}
           </AlertDialogAction>
