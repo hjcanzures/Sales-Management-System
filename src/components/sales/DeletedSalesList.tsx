@@ -81,46 +81,81 @@ export const DeletedSalesList = ({ onSaleRestored }: { onSaleRestored: () => voi
   const handleRestore = async (transno: string) => {
     try {
       // Get the deleted sale data
-      const { data: saleData } = await supabase
+      const { data: saleData, error: saleError } = await supabase
         .from('deleted_sales')
         .select('*')
         .eq('transno', transno)
         .single();
 
-      if (!saleData) throw new Error("Sale not found");
+      if (saleError || !saleData) {
+        throw new Error(saleError?.message || "Sale not found");
+      }
 
       // Get the deleted sale details
-      const { data: detailsData } = await supabase
+      const { data: detailsData, error: detailsError } = await supabase
         .from('deleted_salesdetail')
         .select('*')
         .eq('transno', transno);
 
+      if (detailsError) {
+        throw detailsError;
+      }
+
       // Get the deleted payment
-      const { data: paymentData } = await supabase
+      const { data: paymentData, error: paymentError } = await supabase
         .from('deleted_payment')
         .select('*')
         .eq('transno', transno);
 
-      // Restore the sale
-      await supabase.from('sales').insert({
+      if (paymentError) {
+        throw paymentError;
+      }
+
+      // Begin restoration process - first insert the sale
+      const { error: insertSaleError } = await supabase.from('sales').insert({
         transno: saleData.transno,
         custno: saleData.custno,
         empno: saleData.empno,
         salesdate: saleData.salesdate
       });
 
-      // Restore the sale details
+      if (insertSaleError) {
+        throw insertSaleError;
+      }
+
+      // Restore the sale details if they exist
       if (detailsData && detailsData.length > 0) {
-        await supabase.from('salesdetail').insert(
-          detailsData.map(({ id, deleted_at, ...detail }) => detail)
-        );
+        const detailsToInsert = detailsData.map(({ id, deleted_at, ...detail }) => ({
+          transno: detail.transno,
+          prodcode: detail.prodcode,
+          quantity: detail.quantity
+        }));
+
+        const { error: insertDetailsError } = await supabase
+          .from('salesdetail')
+          .insert(detailsToInsert);
+
+        if (insertDetailsError) {
+          throw insertDetailsError;
+        }
       }
 
       // Restore the payment if it exists
       if (paymentData && paymentData.length > 0) {
-        await supabase.from('payment').insert(
-          paymentData.map(({ id, deleted_at, ...payment }) => payment)
-        );
+        const paymentsToInsert = paymentData.map(({ id, deleted_at, ...payment }) => ({
+          orno: payment.orno,
+          transno: payment.transno,
+          paydate: payment.paydate,
+          amount: payment.amount
+        }));
+
+        const { error: insertPaymentError } = await supabase
+          .from('payment')
+          .insert(paymentsToInsert);
+
+        if (insertPaymentError) {
+          throw insertPaymentError;
+        }
       }
 
       // Delete the backup records
@@ -136,9 +171,10 @@ export const DeletedSalesList = ({ onSaleRestored }: { onSaleRestored: () => voi
       onSaleRestored();
       fetchDeletedSales();
     } catch (error: any) {
+      console.error("Restore error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to restore sale",
         variant: "destructive",
       });
     }

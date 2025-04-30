@@ -69,9 +69,10 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
 
       onSaleDeleted();
     } catch (error: any) {
+      console.error("Delete error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete sale",
         variant: "destructive",
       });
     } finally {
@@ -101,7 +102,7 @@ export const SalesTable = ({ sales, onViewDetails, onSaleDeleted }: SalesTablePr
                 <TableCell>{sale.customer?.custname || 'N/A'}</TableCell>
                 <TableCell>
                   {sale.employee 
-                    ? `${sale.employee.firstname || ''} ${sale.employee.lastname || ''}`
+                    ? `${sale.employee.firstname || ''} ${sale.employee.lastname || ''}`.trim() || 'N/A'
                     : 'N/A'}
                 </TableCell>
                 <TableCell>{formatDate(sale.salesdate)}</TableCell>
