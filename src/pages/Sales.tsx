@@ -8,12 +8,14 @@ import { useSalesData } from "@/hooks/useSalesData";
 import type { Sale } from "@/types";
 
 const Sales = () => {
-  const { sales, loading, fetchSales } = useSalesData();
+  // Fix the order of hooks to be consistent
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNewSaleDialogOpen, setIsNewSaleDialogOpen] = useState(false);
+  // useSalesData must be called after all useState hooks
+  const { sales, loading, fetchSales } = useSalesData();
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
