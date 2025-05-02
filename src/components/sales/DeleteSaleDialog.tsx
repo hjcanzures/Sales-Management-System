@@ -52,11 +52,6 @@ export const DeleteSaleDialog = ({
           e.preventDefault();
           onClose();
         }
-      }} onInteractOutside={(e) => {
-        if (!processing) {
-          e.preventDefault();
-          onClose();
-        }
       }}>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Sale</AlertDialogTitle>
