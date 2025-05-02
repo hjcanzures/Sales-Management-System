@@ -29,6 +29,9 @@ export interface Product {
   unit?: string;
   currentPrice?: number;
   stock?: number;
+  sales?: number;
+  revenue?: number;
+  rank?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -56,6 +59,8 @@ export interface Employee {
   position?: string;
   department?: string;
   hireDate?: Date;
+  sales?: number;
+  revenue?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }

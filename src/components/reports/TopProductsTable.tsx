@@ -5,7 +5,6 @@ import { SearchBar } from "@/components/reports/SearchBar";
 import { Product } from "@/types";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
-import jsPDF from "jspdf";
 
 interface TopProductsTableProps {
   products: Product[];

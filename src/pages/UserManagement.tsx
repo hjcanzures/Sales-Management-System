@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { User, UsersIcon } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock users to manage
 const mockUsers = [
@@ -17,13 +18,16 @@ const mockUsers = [
 
 const UserManagement = () => {
   const { isAdmin, toggleUserStatus } = useAuth();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [sortField, setSortField] = useState("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [users, setUsers] = useState(mockUsers);
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
   // Filter users based on search query and role filter
-  const filteredUsers = mockUsers.filter(user => {
+  const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
@@ -56,12 +60,46 @@ const UserManagement = () => {
     }
   };
 
+  // Handle filtering as user types
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Any additional filtering logic can go here
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Handle user status toggle with debounce to prevent freezing
   const handleToggleStatus = (userId: string) => {
-    // Debounce the toggle action to prevent UI freezing
+    // Set processing state to show loading indicator
+    setIsProcessing(userId);
+    
+    // Simulate API call with slight delay
     setTimeout(() => {
+      // Update the user status in our local state
+      setUsers(prev => 
+        prev.map(user => {
+          if (user.id === userId) {
+            const newStatus = user.status === 'active' ? 'blocked' : 'active';
+            
+            toast({
+              title: `User ${newStatus === 'active' ? 'unblocked' : 'blocked'}`,
+              description: `User ${user.name} has been ${newStatus === 'active' ? 'unblocked' : 'blocked'}.`,
+              variant: newStatus === 'active' ? 'default' : 'destructive',
+            });
+            
+            return { ...user, status: newStatus };
+          }
+          return user;
+        })
+      );
+      
+      // Call the auth context method
       toggleUserStatus(userId);
-    }, 0);
+      
+      // Clear processing state
+      setIsProcessing(null);
+    }, 500);
   };
 
   if (!isAdmin) {
@@ -105,12 +143,14 @@ const UserManagement = () => {
                     <SelectItem value="user">User</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input 
-                  placeholder="Search users..." 
-                  className="flex-1"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+                <div className="relative flex-1">
+                  <Input 
+                    placeholder="Search users..." 
+                    className="w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
               <Button>
                 <User className="h-4 w-4 mr-2" /> Add New User
@@ -173,20 +213,31 @@ const UserManagement = () => {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className={user.status === 'active' ? "text-red-600" : "text-green-600"}
+                            className={user.status === 'active' ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
                             onClick={() => handleToggleStatus(user.id)}
+                            disabled={isProcessing === user.id}
                           >
-                            {user.status === 'active' ? 'Block' : 'Unblock'}
+                            {isProcessing === user.id ? (
+                              "Processing..."
+                            ) : user.status === 'active' ? (
+                              'Block'
+                            ) : (
+                              'Unblock'
+                            )}
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
+                  {sortedUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        {searchQuery ? `No users found matching "${searchQuery}"` : "No users found"}
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
-              {sortedUsers.length === 0 && (
-                <div className="p-4 text-center text-gray-500">No users found</div>
-              )}
             </div>
           </div>
         </CardContent>

@@ -2,7 +2,7 @@
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SearchBarProps {
   placeholder: string;
@@ -12,6 +12,15 @@ interface SearchBarProps {
 
 export function SearchBar({ placeholder, onSearch, className = "" }: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Use debounce to avoid too many updates as user types
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onSearch(searchQuery);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery, onSearch]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
