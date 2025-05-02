@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -16,97 +16,62 @@ import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMe
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-// Mock data (will be replaced with real data from Supabase)
-const monthlySalesData = [
-  { month: "Jan", sales: 4000 },
-  { month: "Feb", sales: 3000 },
-  { month: "Mar", sales: 5000 },
-  { month: "Apr", sales: 2780 },
-  { month: "May", sales: 1890 },
-  { month: "Jun", sales: 2390 },
-  { month: "Jul", sales: 3490 },
-];
-
-const productPerformanceData = [
-  { name: "Product A", sales: 4000, revenue: 24000 },
-  { name: "Product B", sales: 3000, revenue: 18000 },
-  { name: "Product C", sales: 2000, revenue: 22000 },
-  { name: "Product D", sales: 2780, revenue: 29000 },
-  { name: "Product E", sales: 1890, revenue: 18900 },
-];
-
-const topSellingProductsData = [
-  { id: "1", name: "Product A", sales: 532, revenue: 42560, rank: 1 },
-  { id: "2", name: "Product D", sales: 423, revenue: 38070, rank: 2 },
-  { id: "3", name: "Product E", sales: 387, revenue: 34830, rank: 3 },
-  { id: "4", name: "Product B", sales: 298, revenue: 23840, rank: 4 },
-  { id: "5", name: "Product C", sales: 276, revenue: 24840, rank: 5 },
-  { id: "6", name: "Product F", sales: 243, revenue: 21870, rank: 6 },
-  { id: "7", name: "Product G", sales: 209, revenue: 18810, rank: 7 },
-  { id: "8", name: "Product H", sales: 187, revenue: 16830, rank: 8 },
-  { id: "9", name: "Product I", sales: 153, revenue: 13770, rank: 9 },
-  { id: "10", name: "Product J", sales: 128, revenue: 11520, rank: 10 },
-];
-
-const employeePerformanceData = [
-  { name: "Smith", sales: 120, revenue: 98000 },
-  { name: "Johnson", sales: 98, revenue: 72000 },
-  { name: "Williams", sales: 86, revenue: 68000 },
-  { name: "Brown", sales: 99, revenue: 79000 },
-  { name: "Jones", sales: 85, revenue: 61000 },
-];
-
-// Mock sales transactions
-const sampleTransactions = [
-  { transno: 'TR000123', customer: 'John Doe', date: '2023-05-01', total: 1250.00 },
-  { transno: 'TR000124', customer: 'Jane Smith', date: '2023-05-02', total: 450.75 },
-  { transno: 'TR000125', customer: 'Robert Johnson', date: '2023-05-03', total: 789.50 },
-  { transno: 'TR000126', customer: 'Lisa Brown', date: '2023-05-04', total: 1100.25 },
-];
+import { useSalesData } from "@/hooks/useSalesData";
+import { useProductsData } from "@/hooks/useProductsData";
+import { useEmployeesData } from "@/hooks/useEmployeesData";
+import { SearchBar } from "@/components/reports/SearchBar";
+import { TopProductsTable } from "@/components/reports/TopProductsTable";
 
 const Reports = () => {
+  const { sales, loading: salesLoading } = useSalesData();
+  const { products, loading: productsLoading } = useProductsData();
+  const { employees, loading: employeesLoading } = useEmployeesData();
+
   const [date, setDate] = useState<Date>();
   const [reportType, setReportType] = useState("sales");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("sales");
   const [saleRange, setSaleRange] = useState({ from: "", to: "" });
   const [currentSection, setCurrentSection] = useState("charts");
-  const [productSearchTerm, setProductSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   
-  // Filter products based on search term
-  const filteredProducts = topSellingProductsData
-    .filter(product => product.name.toLowerCase().includes(productSearchTerm.toLowerCase()))
-    .sort((a, b) => {
-      const aValue = a[sortColumn as keyof typeof a];
-      const bValue = b[sortColumn as keyof typeof b];
-      
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+  // Calculate data for charts from real data
+  const monthlySalesData = (() => {
+    const monthlyData: { [key: string]: number } = {};
+    sales.forEach(sale => {
+      if (sale.salesdate) {
+        const date = new Date(sale.salesdate);
+        const monthYear = format(date, "MMM yyyy");
+        monthlyData[monthYear] = (monthlyData[monthYear] || 0) + (sale.totalAmount || 0);
       }
-      
-      // For string comparison
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortDirection === 'asc' 
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-      
-      return 0;
     });
+    
+    return Object.entries(monthlyData).map(([month, sales]) => ({
+      month,
+      sales
+    }));
+  })();
 
-  // Sort function to handle column sorting  
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
-  };
-  
+  const productPerformanceData = products.slice(0, 5).map(product => ({
+    name: product.name || product.description || "",
+    sales: product.sales || 0,
+    revenue: product.revenue || 0
+  }));
+
+  const employeePerformanceData = employees.slice(0, 5).map(employee => ({
+    name: employee.name || `${employee.firstname || ""} ${employee.lastname || ""}`.trim(),
+    sales: employee.sales || 0,
+    revenue: employee.revenue || 0
+  }));
+
+  // Filter sales based on search term
+  const filteredSales = sales.filter(sale => 
+    sale.transno?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    sale.customer?.custname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    `${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim().toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Handle PDF generation for reports
   const handleGenerateReportPDF = () => {
     const doc = new jsPDF();
@@ -134,8 +99,11 @@ const Reports = () => {
       columns = [["Product", "Units Sold", "Revenue ($)"]];
       reportData = productPerformanceData.map(item => [item.name, item.sales, item.revenue]);
     } else if (reportType === "topProducts") {
-      columns = [["Rank", "Product", "Units Sold", "Revenue ($)"]];
-      reportData = filteredProducts.map(item => [item.rank, item.name, item.sales, item.revenue]);
+      columns = [["Rank", "Product Code", "Product", "Units Sold", "Revenue ($)"]];
+      reportData = products
+        .filter(p => p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                     p.prodcode?.toLowerCase().includes(searchQuery.toLowerCase()))
+        .map(item => [item.rank, item.prodcode, item.name, item.sales, item.revenue]);
     } else {
       columns = [["Employee", "Sales Count", "Revenue ($)"]];
       reportData = employeePerformanceData.map(item => [item.name, item.sales, item.revenue]);
@@ -156,9 +124,9 @@ const Reports = () => {
   
   // Handle PDF generation for sales transaction
   const handleGenerateSalesPDF = (transactionId: string) => {
-    const transaction = sampleTransactions.find(tx => tx.transno === transactionId);
+    const sale = sales.find(s => s.transno === transactionId);
     
-    if (!transaction) return;
+    if (!sale) return;
     
     const doc = new jsPDF();
     
@@ -167,17 +135,35 @@ const Reports = () => {
     doc.text("Sales Transaction Report", 14, 22);
     
     doc.setFontSize(12);
-    doc.text(`Transaction: ${transaction.transno}`, 14, 35);
-    doc.text(`Customer: ${transaction.customer}`, 14, 45);
-    doc.text(`Date: ${transaction.date}`, 14, 55);
-    doc.text(`Total Amount: $${transaction.total.toFixed(2)}`, 14, 65);
+    doc.text(`Transaction: ${sale.transno}`, 14, 35);
+    doc.text(`Customer: ${sale.customer?.custname || "N/A"}`, 14, 45);
+    doc.text(`Date: ${sale.salesdate || "N/A"}`, 14, 55);
+    doc.text(`Total Amount: $${(sale.totalAmount || 0).toFixed(2)}`, 14, 65);
+    
+    // Add sales details if available
+    if (sale.saleDetails && sale.saleDetails.length > 0) {
+      const detailsData = sale.saleDetails.map(detail => [
+        detail.product?.name || detail.prodcode || "",
+        detail.quantity || 0,
+        `$${(detail.unitPrice || 0).toFixed(2)}`,
+        `$${(detail.subtotal || 0).toFixed(2)}`
+      ]);
+      
+      (doc as any).autoTable({
+        startY: 75,
+        head: [["Product", "Quantity", "Unit Price", "Subtotal"]],
+        body: detailsData,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185], textColor: 255 }
+      });
+    }
     
     // Add signature line
-    doc.line(14, 100, 100, 100);
-    doc.text("Authorized Signature", 14, 110);
+    doc.line(14, 180, 100, 180);
+    doc.text("Authorized Signature", 14, 190);
     
     // Save the PDF
-    doc.save(`transaction-${transaction.transno}.pdf`);
+    doc.save(`transaction-${sale.transno}.pdf`);
   };
 
   return (
@@ -342,67 +328,12 @@ const Reports = () => {
             <CardDescription>
               View and search for the best performing products
             </CardDescription>
-            <div className="flex items-center mt-4">
-              <Search className="mr-2 h-4 w-4 text-gray-400" />
-              <Input 
-                placeholder="Search products..." 
-                value={productSearchTerm} 
-                onChange={(e) => setProductSearchTerm(e.target.value)} 
-                className="w-full max-w-sm" 
-              />
-              <Button variant="outline" className="ml-2" onClick={handleGenerateReportPDF}>
-                <FileText className="mr-2 h-4 w-4" /> Download PDF
-              </Button>
-            </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead 
-                    className="cursor-pointer" 
-                    onClick={() => handleSort('rank')}
-                  >
-                    Rank {sortColumn === 'rank' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer" 
-                    onClick={() => handleSort('name')}
-                  >
-                    Product {sortColumn === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer text-right" 
-                    onClick={() => handleSort('sales')}
-                  >
-                    Units Sold {sortColumn === 'sales' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer text-right" 
-                    onClick={() => handleSort('revenue')}
-                  >
-                    Revenue {sortColumn === 'revenue' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>{product.rank}</TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell className="text-right">{product.sales}</TableCell>
-                    <TableCell className="text-right">${product.revenue.toLocaleString()}</TableCell>
-                  </TableRow>
-                ))}
-                {filteredProducts.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6">
-                      No products found matching "{productSearchTerm}"
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <TopProductsTable 
+              products={products} 
+              onGeneratePDF={handleGenerateReportPDF} 
+            />
           </CardContent>
         </Card>
       )}
@@ -417,20 +348,10 @@ const Reports = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="transactionSearch">Transaction Number</Label>
-                  <Input 
-                    id="transactionSearch" 
-                    placeholder="Enter transaction number..." 
-                    value={searchQuery} 
-                    onChange={(e) => setSearchQuery(e.target.value)} 
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button>Search</Button>
-                </div>
-              </div>
+              <SearchBar 
+                placeholder="Search by transaction number, customer, or employee..." 
+                onSearch={setSearchQuery}
+              />
               
               <div className="border rounded-md">
                 <Table>
@@ -438,34 +359,31 @@ const Reports = () => {
                     <TableRow>
                       <TableHead>Transaction #</TableHead>
                       <TableHead>Customer</TableHead>
+                      <TableHead>Employee</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sampleTransactions
-                      .filter(tx => searchQuery ? tx.transno.toLowerCase().includes(searchQuery.toLowerCase()) : true)
-                      .map((transaction) => (
-                        <TableRow key={transaction.transno}>
-                          <TableCell>{transaction.transno}</TableCell>
-                          <TableCell>{transaction.customer}</TableCell>
-                          <TableCell>{transaction.date}</TableCell>
-                          <TableCell>${transaction.total.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button variant="outline" size="sm" onClick={() => handleGenerateSalesPDF(transaction.transno)}>
-                                <FileText className="h-4 w-4 mr-1" /> PDF
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    {searchQuery && sampleTransactions.filter(tx => 
-                      tx.transno.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                    {filteredSales.map((sale) => (
+                      <TableRow key={sale.transno}>
+                        <TableCell>{sale.transno}</TableCell>
+                        <TableCell>{sale.customer?.custname}</TableCell>
+                        <TableCell>{`${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim()}</TableCell>
+                        <TableCell>{sale.salesdate}</TableCell>
+                        <TableCell>${(sale.totalAmount || 0).toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" onClick={() => handleGenerateSalesPDF(sale.transno || "")}>
+                            <FileText className="h-4 w-4 mr-1" /> PDF
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredSales.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-4">
-                          No transactions found matching '{searchQuery}'
+                        <TableCell colSpan={6} className="text-center py-4">
+                          {salesLoading ? "Loading sales data..." : `No sales found matching '${searchQuery}'`}
                         </TableCell>
                       </TableRow>
                     )}
@@ -548,26 +466,35 @@ const Reports = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={productPerformanceData}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                  <Legend />
-                  <Bar dataKey="sales" name="Units Sold" fill="#0ea5e9" />
-                  <Bar dataKey="revenue" name="Revenue" fill="#22c55e" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-end mt-4">
-              <Button variant="outline" onClick={handleGenerateReportPDF}>
-                <FileText className="h-4 w-4 mr-2" /> Download PDF
-              </Button>
+            <div className="space-y-4">
+              <SearchBar 
+                placeholder="Search by product name or code..." 
+                onSearch={setSearchQuery} 
+                className="max-w-md"
+              />
+            
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={productPerformanceData}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                    <Legend />
+                    <Bar dataKey="sales" name="Units Sold" fill="#0ea5e9" />
+                    <Bar dataKey="revenue" name="Revenue" fill="#22c55e" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={handleGenerateReportPDF}>
+                  <FileText className="h-4 w-4 mr-2" /> Download PDF
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -588,21 +515,32 @@ const Reports = () => {
                   <CardDescription>
                     Sales performance over the past months
                   </CardDescription>
+                  <SearchBar 
+                    placeholder="Search sales..." 
+                    onSearch={setSearchQuery} 
+                    className="mt-4 max-w-md" 
+                  />
                 </CardHeader>
                 <CardContent className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={monthlySalesData}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, 'Sales']} />
-                      <Legend />
-                      <Line type="monotone" dataKey="sales" stroke="#0ea5e9" strokeWidth={2} activeDot={{ r: 8 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {salesLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p>Loading sales data...</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={monthlySalesData}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => [`$${value}`, 'Sales']} />
+                        <Legend />
+                        <Line type="monotone" dataKey="sales" stroke="#0ea5e9" strokeWidth={2} activeDot={{ r: 8 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -614,22 +552,33 @@ const Reports = () => {
                   <CardDescription>
                     Sales and revenue by product
                   </CardDescription>
+                  <SearchBar 
+                    placeholder="Search products..." 
+                    onSearch={setSearchQuery} 
+                    className="mt-4 max-w-md" 
+                  />
                 </CardHeader>
                 <CardContent className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={productPerformanceData}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                      <Legend />
-                      <Bar dataKey="sales" name="Units Sold" fill="#0ea5e9" />
-                      <Bar dataKey="revenue" name="Revenue" fill="#22c55e" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {productsLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p>Loading product data...</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={productPerformanceData}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                        <Legend />
+                        <Bar dataKey="sales" name="Units Sold" fill="#0ea5e9" />
+                        <Bar dataKey="revenue" name="Revenue" fill="#22c55e" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -641,22 +590,33 @@ const Reports = () => {
                   <CardDescription>
                     Sales and revenue by employee
                   </CardDescription>
+                  <SearchBar 
+                    placeholder="Search employees..." 
+                    onSearch={setSearchQuery} 
+                    className="mt-4 max-w-md" 
+                  />
                 </CardHeader>
                 <CardContent className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={employeePerformanceData}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip formatter={(value, name) => [name === 'revenue' ? `$${value}` : value, name === 'revenue' ? 'Revenue' : 'Sales Count']} />
-                      <Legend />
-                      <Bar dataKey="sales" name="Sales Count" fill="#0ea5e9" />
-                      <Bar dataKey="revenue" name="Revenue" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {employeesLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p>Loading employee data...</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={employeePerformanceData}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value, name) => [name === 'revenue' ? `$${value}` : value, name === 'revenue' ? 'Revenue' : 'Sales Count']} />
+                        <Legend />
+                        <Bar dataKey="sales" name="Sales Count" fill="#0ea5e9" />
+                        <Bar dataKey="revenue" name="Revenue" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -666,6 +626,11 @@ const Reports = () => {
             <Card>
               <CardHeader>
                 <CardTitle>{reportType === "sales" ? "Sales Data" : reportType === "products" ? "Product Data" : "Employee Data"}</CardTitle>
+                <SearchBar 
+                  placeholder={`Search ${reportType}...`}
+                  onSearch={setSearchQuery} 
+                  className="mt-4 max-w-md" 
+                />
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -673,12 +638,16 @@ const Reports = () => {
                     <TableHeader>
                       {reportType === "sales" && (
                         <TableRow>
-                          <TableHead>Month</TableHead>
-                          <TableHead className="text-right">Sales ($)</TableHead>
+                          <TableHead>Transaction #</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Total Amount ($)</TableHead>
                         </TableRow>
                       )}
                       {reportType === "products" && (
                         <TableRow>
+                          <TableHead>Product Code</TableHead>
                           <TableHead>Product</TableHead>
                           <TableHead className="text-right">Units Sold</TableHead>
                           <TableHead className="text-right">Revenue ($)</TableHead>
@@ -686,33 +655,54 @@ const Reports = () => {
                       )}
                       {reportType === "employees" && (
                         <TableRow>
-                          <TableHead>Employee</TableHead>
+                          <TableHead>Employee ID</TableHead>
+                          <TableHead>Name</TableHead>
                           <TableHead className="text-right">Sales Count</TableHead>
                           <TableHead className="text-right">Revenue ($)</TableHead>
                         </TableRow>
                       )}
                     </TableHeader>
                     <TableBody>
-                      {reportType === "sales" && monthlySalesData.map((item) => (
-                        <TableRow key={item.month}>
-                          <TableCell>{item.month}</TableCell>
-                          <TableCell className="text-right">{item.sales.toLocaleString()}</TableCell>
+                      {reportType === "sales" && filteredSales.map((item) => (
+                        <TableRow key={item.transno}>
+                          <TableCell>{item.transno}</TableCell>
+                          <TableCell>{item.customer?.custname}</TableCell>
+                          <TableCell>{`${item.employee?.firstname || ""} ${item.employee?.lastname || ""}`.trim()}</TableCell>
+                          <TableCell>{item.salesdate}</TableCell>
+                          <TableCell className="text-right">{(item.totalAmount || 0).toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
-                      {reportType === "products" && productPerformanceData.map((item) => (
-                        <TableRow key={item.name}>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell className="text-right">{item.sales.toLocaleString()}</TableCell>
-                          <TableCell className="text-right">${item.revenue.toLocaleString()}</TableCell>
+                      {reportType === "products" && products
+                        .filter(p => p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                   p.prodcode?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map((item) => (
+                          <TableRow key={item.prodcode}>
+                            <TableCell>{item.prodcode}</TableCell>
+                            <TableCell>{item.name}</TableCell>
+                            <TableCell className="text-right">{(item.sales || 0).toLocaleString()}</TableCell>
+                            <TableCell className="text-right">${(item.revenue || 0).toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      {reportType === "employees" && employees
+                        .filter(e => e.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                   e.empno?.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map((item) => (
+                          <TableRow key={item.empno}>
+                            <TableCell>{item.empno}</TableCell>
+                            <TableCell>{item.name}</TableCell>
+                            <TableCell className="text-right">{(item.sales || 0).toLocaleString()}</TableCell>
+                            <TableCell className="text-right">${(item.revenue || 0).toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      {(reportType === "sales" && filteredSales.length === 0) ||
+                       (reportType === "products" && products.filter(p => p.name?.toLowerCase().includes(searchQuery.toLowerCase())).length === 0) ||
+                       (reportType === "employees" && employees.filter(e => e.name?.toLowerCase().includes(searchQuery.toLowerCase())).length === 0) ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4">
+                            {searchQuery ? `No ${reportType} found matching "${searchQuery}"` : `No ${reportType} data available`}
+                          </TableCell>
                         </TableRow>
-                      ))}
-                      {reportType === "employees" && employeePerformanceData.map((item) => (
-                        <TableRow key={item.name}>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell className="text-right">{item.sales.toLocaleString()}</TableCell>
-                          <TableCell className="text-right">${item.revenue.toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
+                      ) : null}
                     </TableBody>
                   </Table>
                 </div>
@@ -726,3 +716,4 @@ const Reports = () => {
 };
 
 export default Reports;
+
