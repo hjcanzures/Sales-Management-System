@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +13,8 @@ import {
   LogOut,
   Menu,
   X,
-  Settings
+  Settings,
+  UserCog
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -23,7 +25,7 @@ interface LayoutProps {
 }
 
 const Layout = ({ children }: LayoutProps) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [activeItem, setActiveItem] = useState("dashboard");
   
@@ -37,7 +39,8 @@ const Layout = ({ children }: LayoutProps) => {
     navigate("/");
   };
   
-  const navItems = [
+  // Base navigation items for all users
+  const baseNavItems = [
     {
       name: "Dashboard",
       icon: <LucideHome className="h-5 w-5" />,
@@ -63,6 +66,19 @@ const Layout = ({ children }: LayoutProps) => {
       id: "settings"
     }
   ];
+  
+  // Add User Management for admin users only
+  const navItems = isAdmin 
+    ? [
+        ...baseNavItems,
+        {
+          name: "User Management",
+          icon: <UserCog className="h-5 w-5" />,
+          path: "/users",
+          id: "users"
+        }
+      ]
+    : baseNavItems;
   
   const NavItem = ({ item, mobile = false }: { item: typeof navItems[0], mobile?: boolean }) => (
     <li>

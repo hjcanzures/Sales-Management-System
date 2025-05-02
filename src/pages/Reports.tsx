@@ -6,15 +6,15 @@ import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Download, FileText, Users, User } from "lucide-react";
+import { Calendar as CalendarIcon, Download, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
-import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarTrigger } from "@/components/ui/menubar";
+import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@/components/ui/navigation-menu";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // Mock data (will be replaced with real data from Supabase)
 const monthlySalesData = [
@@ -51,14 +51,6 @@ const sampleTransactions = [
   { transno: 'TR000126', customer: 'Lisa Brown', date: '2023-05-04', total: 1100.25 },
 ];
 
-// Mock users for user management
-const mockUsers = [
-  { id: 1, name: 'Admin User', email: 'admin@example.com', role: 'admin', status: 'active' },
-  { id: 2, name: 'Regular User', email: 'user@example.com', role: 'user', status: 'active' },
-  { id: 3, name: 'Blocked User', email: 'blocked@example.com', role: 'user', status: 'blocked' },
-  { id: 4, name: 'Manager User', email: 'manager@example.com', role: 'admin', status: 'active' },
-];
-
 const Reports = () => {
   const [date, setDate] = useState<Date>();
   const [reportType, setReportType] = useState("sales");
@@ -67,10 +59,73 @@ const Reports = () => {
   const [saleRange, setSaleRange] = useState({ from: "", to: "" });
   const [currentSection, setCurrentSection] = useState("charts");
   
-  // Handle PDF generation for sales report
-  const handleGenerateSalesPDF = () => {
-    // In a real implementation, this would generate a PDF using jsPDF or similar
-    alert("PDF generation functionality will be implemented here");
+  // Handle PDF generation for reports
+  const handleGenerateReportPDF = () => {
+    const doc = new jsPDF();
+    const title = reportType === "sales" ? "Monthly Sales Report" : 
+                  reportType === "products" ? "Product Performance Report" : 
+                  "Employee Performance Report";
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text(title, 14, 22);
+    
+    // Add report metadata
+    doc.setFontSize(12);
+    doc.text(`Generated: ${format(new Date(), "PP")}`, 14, 32);
+    
+    // Define the data based on report type
+    let reportData = [];
+    let columns = [];
+    
+    if (reportType === "sales") {
+      columns = [["Month", "Sales ($)"]];
+      reportData = monthlySalesData.map(item => [item.month, item.sales]);
+    } else if (reportType === "products") {
+      columns = [["Product", "Units Sold", "Revenue ($)"]];
+      reportData = productPerformanceData.map(item => [item.name, item.sales, item.revenue]);
+    } else {
+      columns = [["Employee", "Sales Count", "Revenue ($)"]];
+      reportData = employeePerformanceData.map(item => [item.name, item.sales, item.revenue]);
+    }
+    
+    // Add table with data
+    (doc as any).autoTable({
+      startY: 40,
+      head: columns,
+      body: reportData,
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
+    });
+    
+    // Save the PDF
+    doc.save(`${reportType}-report.pdf`);
+  };
+  
+  // Handle PDF generation for sales transaction
+  const handleGenerateSalesPDF = (transactionId: string) => {
+    const transaction = sampleTransactions.find(tx => tx.transno === transactionId);
+    
+    if (!transaction) return;
+    
+    const doc = new jsPDF();
+    
+    // Add title and transaction details
+    doc.setFontSize(18);
+    doc.text("Sales Transaction Report", 14, 22);
+    
+    doc.setFontSize(12);
+    doc.text(`Transaction: ${transaction.transno}`, 14, 35);
+    doc.text(`Customer: ${transaction.customer}`, 14, 45);
+    doc.text(`Date: ${transaction.date}`, 14, 55);
+    doc.text(`Total Amount: $${transaction.total.toFixed(2)}`, 14, 65);
+    
+    // Add signature line
+    doc.line(14, 100, 100, 100);
+    doc.text("Authorized Signature", 14, 110);
+    
+    // Save the PDF
+    doc.save(`transaction-${transaction.transno}.pdf`);
   };
 
   return (
@@ -150,15 +205,6 @@ const Reports = () => {
               Employee Reports
             </NavigationMenuTrigger>
           </NavigationMenuItem>
-          
-          <NavigationMenuItem>
-            <NavigationMenuTrigger 
-              className={cn(activeTab === "users" ? "bg-sales-50 text-sales-700" : "")}
-              onClick={() => {setActiveTab("users"); setCurrentSection("userManagement");}}
-            >
-              Manage Users
-            </NavigationMenuTrigger>
-          </NavigationMenuItem>
         </NavigationMenuList>
       </NavigationMenu>
       
@@ -201,9 +247,9 @@ const Reports = () => {
               </PopoverContent>
             </Popover>
             
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleGenerateReportPDF}>
               <Download className="mr-2 h-4 w-4" />
-              Export
+              Export PDF
             </Button>
           </div>
         </div>
@@ -255,9 +301,11 @@ const Reports = () => {
                           <td className="px-6 py-4 whitespace-nowrap">{transaction.date}</td>
                           <td className="px-6 py-4 whitespace-nowrap">${transaction.total.toFixed(2)}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <Button variant="outline" size="sm" onClick={handleGenerateSalesPDF}>
-                              <FileText className="h-4 w-4 mr-1" /> PDF
-                            </Button>
+                            <div className="flex space-x-2">
+                              <Button variant="outline" size="sm" onClick={() => handleGenerateSalesPDF(transaction.transno)}>
+                                <FileText className="h-4 w-4 mr-1" /> PDF
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -326,90 +374,9 @@ const Reports = () => {
               </div>
               
               <div className="flex justify-end">
-                <Button variant="outline" onClick={handleGenerateSalesPDF}>
+                <Button variant="outline" onClick={handleGenerateReportPDF}>
                   <FileText className="h-4 w-4 mr-2" /> Download PDF
                 </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
-      {currentSection === "userManagement" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>
-              Manage system users and their roles
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <div className="flex gap-4 items-center">
-                  <Select defaultValue="all">
-                    <SelectTrigger className="w-[150px]">
-                      <SelectValue placeholder="Filter by Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Roles</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="blocked">Blocked</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input 
-                    placeholder="Search users..." 
-                    className="w-[250px]"
-                  />
-                </div>
-                <Button>
-                  <User className="h-4 w-4 mr-2" /> Add New User
-                </Button>
-              </div>
-              
-              <div className="border rounded-md">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {mockUsers.map((user) => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{user.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {user.role}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex space-x-2">
-                            <Button variant="ghost" size="sm">Edit</Button>
-                            <Button variant="ghost" size="sm" className="text-red-600">
-                              {user.status === 'active' ? 'Block' : 'Unblock'}
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
           </CardContent>

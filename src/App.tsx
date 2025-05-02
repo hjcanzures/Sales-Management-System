@@ -17,16 +17,18 @@ import Customers from "./pages/Customers";
 import Products from "./pages/Products";
 import Employees from "./pages/Employees";
 import Reports from "./pages/Reports";
+import UserManagement from "./pages/UserManagement";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 // Protected Route Component
 interface ProtectedRouteProps {
   element: React.ReactNode;
+  adminOnly?: boolean;
 }
 
-const ProtectedRoute = ({ element }: ProtectedRouteProps) => {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute = ({ element, adminOnly = false }: ProtectedRouteProps) => {
+  const { isAuthenticated, loading, isAdmin } = useAuth();
   
   if (loading) {
     return <div>Loading...</div>;
@@ -34,6 +36,10 @@ const ProtectedRoute = ({ element }: ProtectedRouteProps) => {
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/dashboard" replace />;
   }
   
   return <Layout>{element}</Layout>;
@@ -62,6 +68,7 @@ const App = () => (
             <Route path="/products" element={<ProtectedRoute element={<Products />} />} />
             <Route path="/employees" element={<ProtectedRoute element={<Employees />} />} />
             <Route path="/reports" element={<ProtectedRoute element={<Reports />} />} />
+            <Route path="/users" element={<ProtectedRoute element={<UserManagement />} adminOnly={true} />} />
             <Route path="/settings" element={<ProtectedRoute element={<Settings />} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
