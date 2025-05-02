@@ -26,15 +26,38 @@ export const DeleteSaleDialog = ({
 }: DeleteSaleDialogProps) => {
   const [processing, setProcessing] = useState(false);
   
-  const handleConfirm = () => {
-    setProcessing(true);
-    onConfirm();
-    setProcessing(false);
+  const handleConfirm = async () => {
+    try {
+      setProcessing(true);
+      await onConfirm();
+    } catch (error) {
+      console.error("Error deleting sale:", error);
+    } finally {
+      setProcessing(false);
+      onClose();
+    }
   };
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={processing ? undefined : onClose}>
-      <AlertDialogContent>
+    <AlertDialog 
+      open={isOpen} 
+      onOpenChange={(open) => {
+        if (!open && !processing) {
+          onClose();
+        }
+      }}
+    >
+      <AlertDialogContent onEscapeKeyDown={(e) => {
+        if (!processing) {
+          e.preventDefault();
+          onClose();
+        }
+      }} onInteractOutside={(e) => {
+        if (!processing) {
+          e.preventDefault();
+          onClose();
+        }
+      }}>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Sale</AlertDialogTitle>
           <AlertDialogDescription>
@@ -42,7 +65,9 @@ export const DeleteSaleDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={processing} onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={processing} onClick={() => !processing && onClose()}>
+            Cancel
+          </AlertDialogCancel>
           <AlertDialogAction disabled={processing} onClick={handleConfirm}>
             {processing ? "Deleting..." : "Delete"}
           </AlertDialogAction>

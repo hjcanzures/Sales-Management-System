@@ -30,10 +30,6 @@ const Sales = () => {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    // Small delay to ensure modal is fully closed before clearing the data
-    setTimeout(() => {
-      setCurrentSale(null);
-    }, 300);
   };
 
   const handleNewSale = () => {
@@ -60,11 +56,13 @@ const Sales = () => {
         onSalesUpdate={fetchSales}
       />
 
-      <SaleDetailsModal
-        sale={currentSale}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-      />
+      {isModalOpen && (
+        <SaleDetailsModal
+          sale={currentSale}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+        />
+      )}
 
       <NewSaleDialog 
         isOpen={isNewSaleDialogOpen}

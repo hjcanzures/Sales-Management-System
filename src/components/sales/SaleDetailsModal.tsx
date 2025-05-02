@@ -10,8 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { X, Printer } from "lucide-react";
+import { X, Printer, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface SaleDetailsModalProps {
   sale: Sale | null;
@@ -32,9 +34,79 @@ export const SaleDetailsModal = ({ sale, isOpen, onClose }: SaleDetailsModalProp
     // In a real implementation, this would trigger the print functionality
   };
 
+  const handleDownloadPDF = () => {
+    try {
+      const doc = new jsPDF();
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.text("Sales Invoice", 14, 22);
+      
+      // Add invoice details
+      doc.setFontSize(11);
+      doc.text(`Transaction #: ${sale.transno || 'N/A'}`, 14, 30);
+      doc.text(`Date: ${formatDate(sale.salesdate)}`, 14, 36);
+      doc.text(`Status: ${sale.status || 'N/A'}`, 14, 42);
+      
+      // Customer & Employee info
+      doc.text("Customer:", 14, 52);
+      doc.text(`${sale.customer?.custname || 'N/A'}`, 14, 58);
+      doc.text(`${sale.customer?.address || 'No address'}`, 14, 64);
+      
+      doc.text("Employee:", 120, 52);
+      doc.text(
+        `${sale.employee ? `${sale.employee.firstname || ''} ${sale.employee.lastname || ''}` : 'N/A'}`,
+        120, 58
+      );
+      
+      // Create table for products
+      const tableColumn = ["Product", "Quantity", "Unit Price", "Subtotal"];
+      const tableRows = sale.salesDetails?.map(detail => [
+        detail.product?.description || detail.prodcode || 'N/A',
+        detail.quantity?.toString() || '0',
+        detail.unitPrice !== undefined ? formatCurrency(detail.unitPrice) : 'N/A',
+        detail.subtotal !== undefined ? formatCurrency(detail.subtotal) : 'N/A'
+      ]) || [];
+      
+      // Add products table
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 70,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185] },
+      });
+      
+      // Add total at the bottom
+      const finalY = (doc as any).lastAutoTable.finalY || 120;
+      doc.text(`Total Amount: ${sale.totalAmount !== undefined ? formatCurrency(sale.totalAmount) : 'N/A'}`, 130, finalY + 10);
+      
+      // Save the PDF
+      doc.save(`Invoice-${sale.transno}.pdf`);
+
+      toast({
+        title: "PDF Downloaded",
+        description: `Invoice ${sale.transno} has been downloaded.`,
+      });
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]" onInteractOutside={onClose} onEscapeKeyDown={onClose}>
+      <DialogContent className="max-w-4xl overflow-y-auto max-h-[90vh]" onInteractOutside={(e) => {
+        e.preventDefault();
+        onClose();
+      }} onEscapeKeyDown={(e) => {
+        e.preventDefault(); 
+        onClose();
+      }}>
         <DialogHeader className="flex flex-row items-center justify-between">
           <div>
             <DialogTitle>Sale Details</DialogTitle>
@@ -136,10 +208,16 @@ export const SaleDetailsModal = ({ sale, isOpen, onClose }: SaleDetailsModalProp
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print Invoice
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleDownloadPDF} variant="secondary">
+              <FileText className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
