@@ -1,12 +1,12 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Download, FileText } from "lucide-react";
+import { Calendar as CalendarIcon, Download, FileText, Search, ChartBarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@/components/ui/navigation-menu";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 // Mock data (will be replaced with real data from Supabase)
 const monthlySalesData = [
@@ -33,6 +34,19 @@ const productPerformanceData = [
   { name: "Product C", sales: 2000, revenue: 22000 },
   { name: "Product D", sales: 2780, revenue: 29000 },
   { name: "Product E", sales: 1890, revenue: 18900 },
+];
+
+const topSellingProductsData = [
+  { id: "1", name: "Product A", sales: 532, revenue: 42560, rank: 1 },
+  { id: "2", name: "Product D", sales: 423, revenue: 38070, rank: 2 },
+  { id: "3", name: "Product E", sales: 387, revenue: 34830, rank: 3 },
+  { id: "4", name: "Product B", sales: 298, revenue: 23840, rank: 4 },
+  { id: "5", name: "Product C", sales: 276, revenue: 24840, rank: 5 },
+  { id: "6", name: "Product F", sales: 243, revenue: 21870, rank: 6 },
+  { id: "7", name: "Product G", sales: 209, revenue: 18810, rank: 7 },
+  { id: "8", name: "Product H", sales: 187, revenue: 16830, rank: 8 },
+  { id: "9", name: "Product I", sales: 153, revenue: 13770, rank: 9 },
+  { id: "10", name: "Product J", sales: 128, revenue: 11520, rank: 10 },
 ];
 
 const employeePerformanceData = [
@@ -58,12 +72,47 @@ const Reports = () => {
   const [activeTab, setActiveTab] = useState("sales");
   const [saleRange, setSaleRange] = useState({ from: "", to: "" });
   const [currentSection, setCurrentSection] = useState("charts");
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [sortColumn, setSortColumn] = useState("rank");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  
+  // Filter products based on search term
+  const filteredProducts = topSellingProductsData
+    .filter(product => product.name.toLowerCase().includes(productSearchTerm.toLowerCase()))
+    .sort((a, b) => {
+      const aValue = a[sortColumn as keyof typeof a];
+      const bValue = b[sortColumn as keyof typeof b];
+      
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      
+      // For string comparison
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      return 0;
+    });
+
+  // Sort function to handle column sorting  
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
   
   // Handle PDF generation for reports
   const handleGenerateReportPDF = () => {
     const doc = new jsPDF();
     const title = reportType === "sales" ? "Monthly Sales Report" : 
                   reportType === "products" ? "Product Performance Report" : 
+                  reportType === "topProducts" ? "Top Selling Products Report" :
                   "Employee Performance Report";
     
     // Add title
@@ -84,6 +133,9 @@ const Reports = () => {
     } else if (reportType === "products") {
       columns = [["Product", "Units Sold", "Revenue ($)"]];
       reportData = productPerformanceData.map(item => [item.name, item.sales, item.revenue]);
+    } else if (reportType === "topProducts") {
+      columns = [["Rank", "Product", "Units Sold", "Revenue ($)"]];
+      reportData = filteredProducts.map(item => [item.rank, item.name, item.sales, item.revenue]);
     } else {
       columns = [["Employee", "Sales Count", "Revenue ($)"]];
       reportData = employeePerformanceData.map(item => [item.name, item.sales, item.revenue]);
@@ -195,6 +247,34 @@ const Reports = () => {
             >
               Product Reports
             </NavigationMenuTrigger>
+            <NavigationMenuContent>
+              <div className="grid grid-cols-1 gap-3 p-4 w-[300px]">
+                <NavigationMenuLink asChild>
+                  <a
+                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                    href="#"
+                    onClick={(e) => {e.preventDefault(); setCurrentSection("productPerformance"); setReportType("products");}}
+                  >
+                    <div className="text-sm font-medium leading-none">Product Performance</div>
+                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                      View sales and revenue by product
+                    </p>
+                  </a>
+                </NavigationMenuLink>
+                <NavigationMenuLink asChild>
+                  <a
+                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                    href="#"
+                    onClick={(e) => {e.preventDefault(); setCurrentSection("topProductsList"); setReportType("topProducts");}}
+                  >
+                    <div className="text-sm font-medium leading-none">Top Products Ranking</div>
+                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                      View and search top selling products
+                    </p>
+                  </a>
+                </NavigationMenuLink>
+              </div>
+            </NavigationMenuContent>
           </NavigationMenuItem>
           
           <NavigationMenuItem>
@@ -255,6 +335,78 @@ const Reports = () => {
         </div>
       )}
       
+      {currentSection === "topProductsList" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Selling Products</CardTitle>
+            <CardDescription>
+              View and search for the best performing products
+            </CardDescription>
+            <div className="flex items-center mt-4">
+              <Search className="mr-2 h-4 w-4 text-gray-400" />
+              <Input 
+                placeholder="Search products..." 
+                value={productSearchTerm} 
+                onChange={(e) => setProductSearchTerm(e.target.value)} 
+                className="w-full max-w-sm" 
+              />
+              <Button variant="outline" className="ml-2" onClick={handleGenerateReportPDF}>
+                <FileText className="mr-2 h-4 w-4" /> Download PDF
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={() => handleSort('rank')}
+                  >
+                    Rank {sortColumn === 'rank' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer" 
+                    onClick={() => handleSort('name')}
+                  >
+                    Product {sortColumn === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer text-right" 
+                    onClick={() => handleSort('sales')}
+                  >
+                    Units Sold {sortColumn === 'sales' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer text-right" 
+                    onClick={() => handleSort('revenue')}
+                  >
+                    Revenue {sortColumn === 'revenue' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>{product.rank}</TableCell>
+                    <TableCell>{product.name}</TableCell>
+                    <TableCell className="text-right">{product.sales}</TableCell>
+                    <TableCell className="text-right">${product.revenue.toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+                {filteredProducts.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-6">
+                      No products found matching "{productSearchTerm}"
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+      
       {currentSection === "salesByTransaction" && (
         <Card>
           <CardHeader>
@@ -281,40 +433,44 @@ const Reports = () => {
               </div>
               
               <div className="border rounded-md">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction #</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Transaction #</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {sampleTransactions
                       .filter(tx => searchQuery ? tx.transno.toLowerCase().includes(searchQuery.toLowerCase()) : true)
                       .map((transaction) => (
-                        <tr key={transaction.transno}>
-                          <td className="px-6 py-4 whitespace-nowrap">{transaction.transno}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{transaction.customer}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">{transaction.date}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">${transaction.total.toFixed(2)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                        <TableRow key={transaction.transno}>
+                          <TableCell>{transaction.transno}</TableCell>
+                          <TableCell>{transaction.customer}</TableCell>
+                          <TableCell>{transaction.date}</TableCell>
+                          <TableCell>${transaction.total.toFixed(2)}</TableCell>
+                          <TableCell>
                             <div className="flex space-x-2">
                               <Button variant="outline" size="sm" onClick={() => handleGenerateSalesPDF(transaction.transno)}>
                                 <FileText className="h-4 w-4 mr-1" /> PDF
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                  </tbody>
-                </table>
-                {searchQuery && sampleTransactions.filter(tx => 
-                  tx.transno.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                  <div className="p-4 text-center text-gray-500">No transactions found matching '{searchQuery}'</div>
-                )}
+                    {searchQuery && sampleTransactions.filter(tx => 
+                      tx.transno.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-4">
+                          No transactions found matching '{searchQuery}'
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           </CardContent>
@@ -378,6 +534,40 @@ const Reports = () => {
                   <FileText className="h-4 w-4 mr-2" /> Download PDF
                 </Button>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {currentSection === "productPerformance" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Product Performance Analysis</CardTitle>
+            <CardDescription>
+              Detailed analysis of product sales and revenue
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={productPerformanceData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
+                  <Legend />
+                  <Bar dataKey="sales" name="Units Sold" fill="#0ea5e9" />
+                  <Bar dataKey="revenue" name="Revenue" fill="#22c55e" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" onClick={handleGenerateReportPDF}>
+                <FileText className="h-4 w-4 mr-2" /> Download PDF
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -478,9 +668,54 @@ const Reports = () => {
                 <CardTitle>{reportType === "sales" ? "Sales Data" : reportType === "products" ? "Product Data" : "Employee Data"}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-500">
-                  Tabular report data will be displayed here. Connect to Supabase to fetch real data.
-                </p>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      {reportType === "sales" && (
+                        <TableRow>
+                          <TableHead>Month</TableHead>
+                          <TableHead className="text-right">Sales ($)</TableHead>
+                        </TableRow>
+                      )}
+                      {reportType === "products" && (
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead className="text-right">Units Sold</TableHead>
+                          <TableHead className="text-right">Revenue ($)</TableHead>
+                        </TableRow>
+                      )}
+                      {reportType === "employees" && (
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead className="text-right">Sales Count</TableHead>
+                          <TableHead className="text-right">Revenue ($)</TableHead>
+                        </TableRow>
+                      )}
+                    </TableHeader>
+                    <TableBody>
+                      {reportType === "sales" && monthlySalesData.map((item) => (
+                        <TableRow key={item.month}>
+                          <TableCell>{item.month}</TableCell>
+                          <TableCell className="text-right">{item.sales.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                      {reportType === "products" && productPerformanceData.map((item) => (
+                        <TableRow key={item.name}>
+                          <TableCell>{item.name}</TableCell>
+                          <TableCell className="text-right">{item.sales.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">${item.revenue.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                      {reportType === "employees" && employeePerformanceData.map((item) => (
+                        <TableRow key={item.name}>
+                          <TableCell>{item.name}</TableCell>
+                          <TableCell className="text-right">{item.sales.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">${item.revenue.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
