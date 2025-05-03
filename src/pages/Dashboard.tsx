@@ -1,8 +1,12 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { augmentedSales, products, customers, employees } from "@/lib/mockData";
-import { DollarSign, Users, Package, User, ArrowUp, ArrowDown } from "lucide-react";
+import { DollarSign, ArrowUp, ArrowDown } from "lucide-react";
+import { useSalesData } from "@/hooks/useSalesData";
+import { useProductsData } from "@/hooks/useProductsData";
+import { useEmployeesData } from "@/hooks/useEmployeesData";
+import { format } from "date-fns";
 
 // Define proper types for our sales data
 interface MonthlySale {
@@ -13,50 +17,76 @@ interface MonthlySale {
 interface ProductSale {
   name: string;
   sales: number;
-}
-
-interface SalesData {
-  monthlySales: MonthlySale[];
-  productSales: ProductSale[];
+  revenue: number;
 }
 
 const Dashboard = () => {
-  // Use the proper type for the state
-  const [salesData, setSalesData] = useState<SalesData>({ monthlySales: [], productSales: [] });
-  const [loading, setLoading] = useState(true);
+  const { sales, loading: salesLoading } = useSalesData();
+  const { products, loading: productsLoading } = useProductsData();
+  const { employees, loading: employeesLoading } = useEmployeesData();
+  
+  const [monthlySales, setMonthlySales] = useState<MonthlySale[]>([]);
+  const [productSales, setProductSales] = useState<ProductSale[]>([]);
+  const [totalSales, setTotalSales] = useState<number>(0);
+  const [salesGrowth, setSalesGrowth] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
 
+  // Process data for charts
   useEffect(() => {
-    // Process the sales data for charts
-    const monthlySales = Array(12).fill(0).map((_, i) => {
-      const month = new Date(2023, i, 1).toLocaleString('default', { month: 'short' });
-      const amount = augmentedSales
-        .filter(sale => sale.saleDate.getMonth() === i)
-        .reduce((total, sale) => total + sale.totalAmount, 0);
-      return { month, amount };
-    });
+    if (salesLoading || productsLoading || employeesLoading) {
+      setLoading(true);
+      return;
+    }
 
-    // Product sales data
-    const productSales = products.map(product => {
-      const salesCount = augmentedSales.reduce((count, sale) => {
-        const productInSale = sale.saleDetails?.filter(detail => detail.productId === product.id) || [];
-        return count + productInSale.reduce((total, detail) => total + detail.quantity, 0);
-      }, 0);
+    // Calculate total sales amount
+    const totalAmount = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+    setTotalSales(totalAmount);
+
+    // Process monthly sales data
+    const monthlyData: { [key: string]: number } = {};
+    
+    sales.forEach(sale => {
+      if (sale.salesdate) {
+        const date = new Date(sale.salesdate);
+        const monthYear = format(date, "MMM yyyy");
+        monthlyData[monthYear] = (monthlyData[monthYear] || 0) + (sale.totalAmount || 0);
+      }
+    });
+    
+    const processedMonthlySales = Object.entries(monthlyData).map(([month, amount]) => ({
+      month,
+      amount
+    }));
+    
+    setMonthlySales(processedMonthlySales);
+
+    // Calculate sales growth (simplified)
+    if (processedMonthlySales.length >= 2) {
+      const lastMonth = processedMonthlySales[processedMonthlySales.length - 1].amount;
+      const previousMonth = processedMonthlySales[processedMonthlySales.length - 2].amount;
       
-      return {
-        name: product.name,
-        sales: salesCount
-      };
-    });
+      if (previousMonth > 0) {
+        const growthPercent = ((lastMonth - previousMonth) / previousMonth) * 100;
+        setSalesGrowth(parseFloat(growthPercent.toFixed(1)));
+      }
+    }
 
-    setSalesData({ monthlySales, productSales });
+    // Process product sales data
+    const topProducts = products
+      .sort((a, b) => (b.sales || 0) - (a.sales || 0))
+      .slice(0, 5)
+      .map(product => ({
+        name: product.name || product.description || "",
+        sales: product.sales || 0,
+        revenue: product.revenue || 0
+      }));
+    
+    setProductSales(topProducts);
     setLoading(false);
-  }, []);
-
-  // Calculate KPIs - simplified
-  const totalSales = augmentedSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+  }, [sales, products, employees, salesLoading, productsLoading, employeesLoading]);
 
   // Format currency
-  const formatCurrency = (value) => {
+  const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -79,7 +109,7 @@ const Dashboard = () => {
         <p className="text-gray-600 mt-2">Welcome to your sales management dashboard</p>
       </div>
       
-      {/* KPI Cards - only sales */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
         <Card>
           <CardContent className="p-6">
@@ -87,13 +117,17 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm font-medium text-gray-500">Total Sales</p>
                 <h3 className="text-2xl font-bold mt-1">{formatCurrency(totalSales)}</h3>
-                <div className="flex items-center mt-1 text-sm font-medium text-green-600">
-                  <ArrowUp className="h-4 w-4 mr-1" />
-                  <span>12% from last month</span>
+                <div className={`flex items-center mt-1 text-sm font-medium ${salesGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {salesGrowth >= 0 ? (
+                    <ArrowUp className="h-4 w-4 mr-1" />
+                  ) : (
+                    <ArrowDown className="h-4 w-4 mr-1" />
+                  )}
+                  <span>{Math.abs(salesGrowth)}% from last month</span>
                 </div>
               </div>
-              <div className="bg-sales-100 p-3 rounded-full">
-                <DollarSign className="h-6 w-6 text-sales-600" />
+              <div className="bg-blue-100 p-3 rounded-full">
+                <DollarSign className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -110,13 +144,13 @@ const Dashboard = () => {
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={salesData.monthlySales}
+                  data={monthlySales}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Tooltip formatter={(value) => formatCurrency(value as number)} />
                   <Legend />
                   <Line type="monotone" dataKey="amount" stroke="#0ea5e9" strokeWidth={2} activeDot={{ r: 8 }} />
                 </LineChart>
@@ -133,7 +167,7 @@ const Dashboard = () => {
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={salesData.productSales}
+                  data={productSales}
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
@@ -141,7 +175,8 @@ const Dashboard = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="sales" fill="#0ea5e9" />
+                  <Bar dataKey="sales" fill="#0ea5e9" name="Units Sold" />
+                  <Bar dataKey="revenue" fill="#22c55e" name="Revenue" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -168,13 +203,13 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {augmentedSales.map((sale) => (
-                  <tr key={sale.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3">#{sale.id}</td>
-                    <td className="px-4 py-3">{sale.customer?.name}</td>
-                    <td className="px-4 py-3">{sale.employee?.name}</td>
-                    <td className="px-4 py-3">{sale.saleDate.toLocaleDateString()}</td>
-                    <td className="px-4 py-3">{formatCurrency(sale.totalAmount)}</td>
+                {sales.slice(0, 5).map((sale) => (
+                  <tr key={sale.transno} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-3">#{sale.transno}</td>
+                    <td className="px-4 py-3">{sale.customer?.custname || "N/A"}</td>
+                    <td className="px-4 py-3">{`${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim() || "N/A"}</td>
+                    <td className="px-4 py-3">{sale.salesdate || "N/A"}</td>
+                    <td className="px-4 py-3">{formatCurrency(sale.totalAmount || 0)}</td>
                     <td className="px-4 py-3">
                       <span 
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -185,11 +220,16 @@ const Dashboard = () => {
                               : 'bg-red-100 text-red-800'
                         }`}
                       >
-                        {sale.status}
+                        {sale.status || "pending"}
                       </span>
                     </td>
                   </tr>
                 ))}
+                {sales.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center">No sales data available</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

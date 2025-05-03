@@ -4,11 +4,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SearchBar } from "@/components/reports/SearchBar";
 import { Product } from "@/types";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { FilePdf } from "lucide-react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 interface TopProductsTableProps {
   products: Product[];
-  onGeneratePDF: () => void;
+  onGeneratePDF?: () => void;
 }
 
 export function TopProductsTable({ products, onGeneratePDF }: TopProductsTableProps) {
@@ -48,6 +50,36 @@ export function TopProductsTable({ products, onGeneratePDF }: TopProductsTablePr
       return 0;
     });
 
+  const handleGeneratePDF = () => {
+    if (onGeneratePDF) {
+      onGeneratePDF();
+      return;
+    }
+
+    // Default PDF generation if no custom handler is provided
+    const doc = new jsPDF();
+    doc.text("Top Selling Products Report", 14, 22);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 32);
+    
+    // Add table with product data
+    (doc as any).autoTable({
+      startY: 40,
+      head: [["Rank", "Product Code", "Product", "Units Sold", "Revenue"]],
+      body: filteredProducts.map(product => [
+        product.rank,
+        product.prodcode,
+        product.name,
+        product.sales,
+        `$${(product.revenue || 0).toLocaleString()}`
+      ]),
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
+    });
+    
+    // Save the PDF
+    doc.save("top-products-report.pdf");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -56,8 +88,8 @@ export function TopProductsTable({ products, onGeneratePDF }: TopProductsTablePr
           onSearch={setSearchTerm}
           className="max-w-sm"
         />
-        <Button variant="outline" onClick={onGeneratePDF}>
-          <FileText className="mr-2 h-4 w-4" /> Export PDF
+        <Button variant="outline" onClick={handleGeneratePDF}>
+          <FilePdf className="mr-2 h-4 w-4" /> Export PDF
         </Button>
       </div>
 
