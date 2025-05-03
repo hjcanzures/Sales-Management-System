@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -333,6 +332,7 @@ const Reports = () => {
             <TopProductsTable 
               products={products} 
               onGeneratePDF={handleGenerateReportPDF} 
+              salesData={sales}
             />
           </CardContent>
         </Card>
@@ -716,4 +716,3 @@ const Reports = () => {
 };
 
 export default Reports;
-
