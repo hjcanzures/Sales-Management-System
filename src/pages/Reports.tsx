@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +19,8 @@ import { useEmployeesData } from "@/hooks/useEmployeesData";
 import { SearchBar } from "@/components/reports/SearchBar";
 import { TopProductsTable } from "@/components/reports/TopProductsTable";
 import { PDFExportButton } from "@/components/reports/PDFExportButton";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 const Reports = () => {
   const { sales, loading: salesLoading } = useSalesData();

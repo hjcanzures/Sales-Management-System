@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Sale } from "@/types";
@@ -35,7 +34,7 @@ export const useSalesData = () => {
               .from('payment')
               .select('amount, paydate')
               .eq('transno', sale.transno)
-              .single();
+              .maybeSingle(); // Use maybeSingle instead of single to avoid errors
 
             if (paymentError && paymentError.code !== 'PGRST116') { // PGRST116 is "No rows returned"
               console.error('Error fetching payment:', paymentError);
@@ -66,7 +65,7 @@ export const useSalesData = () => {
                     .eq('prodcode', detail.prodcode)
                     .order('effdate', { ascending: false })
                     .limit(1)
-                    .single();
+                    .maybeSingle(); // Use maybeSingle instead of single
 
                   if (priceError && priceError.code !== 'PGRST116') {
                     console.error('Error fetching price:', priceError);
@@ -118,6 +117,8 @@ export const useSalesData = () => {
       // Filter out any null items from failed processing
       const validSales = processedSales.filter(Boolean) as Sale[];
       setSales(validSales);
+      
+      console.log('Fetched sales data:', validSales.length, 'records');
     } catch (error: any) {
       console.error('Error fetching sales:', error);
       toast({
@@ -133,6 +134,13 @@ export const useSalesData = () => {
 
   useEffect(() => {
     fetchSales();
+    
+    // Set up a refresh interval to keep data in sync
+    const intervalId = setInterval(() => {
+      fetchSales();
+    }, 300000); // Refresh every 5 minutes
+    
+    return () => clearInterval(intervalId);
   }, [fetchSales]);
 
   return { sales, loading, fetchSales };

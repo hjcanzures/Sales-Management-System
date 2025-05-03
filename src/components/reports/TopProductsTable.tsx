@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchBar } from "@/components/reports/SearchBar";
 import { Product } from "@/types";
@@ -41,9 +41,9 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
   const [isFiltering, setIsFiltering] = useState(true);
   const [monthSelectionOpen, setMonthSelectionOpen] = useState(false);
   
-  // Generate year options (current year and 4 years back)
+  // Generate year options (from current year back to 2000)
   const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const yearOptions = Array.from({ length: currentYear - 1999 }, (_, i) => currentYear - i);
   
   // Month options
   const months = [
@@ -71,6 +71,11 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
       setIsFiltering(true);
     }
   };
+
+  // Set initial date range on component mount
+  useEffect(() => {
+    updateDateRange();
+  }, []);
 
   const handleSort = (column: keyof Product) => {
     if (sortColumn === column) {
@@ -100,7 +105,7 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
         if (salesData && salesData.length > 0) {
           const productSales = salesData.filter(sale => {
             // Check if the sale is for this product
-            const hasProduct = sale.saleDetails?.some((detail: any) => 
+            const hasProduct = sale.salesDetails?.some((detail: any) => 
               detail.prodcode === product.prodcode
             );
             
@@ -267,7 +272,7 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
                         <SelectTrigger>
                           <SelectValue placeholder="Year" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[200px] overflow-y-auto">
                           {yearOptions.map(year => (
                             <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                           ))}
@@ -292,7 +297,7 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
                         <SelectTrigger>
                           <SelectValue placeholder="Year" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[200px] overflow-y-auto">
                           {yearOptions.map(year => (
                             <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                           ))}
@@ -336,9 +341,22 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
             </PopoverContent>
           </Popover>
           
-          <Button variant="outline" onClick={handleGeneratePDF}>
-            <FileText className="mr-2 h-4 w-4" /> Export PDF
-          </Button>
+          <PDFExportButton
+            reportTitle="Top Selling Products Report"
+            reportData={filteredProducts}
+            columns={[
+              { header: "Rank", accessor: "rank" },
+              { header: "Product Code", accessor: "prodcode" },
+              { header: "Product Name", accessor: "name" },
+              { header: "Units Sold", accessor: "sales" },
+              { header: "Revenue", accessor: "revenue" }
+            ]}
+            filename={`top-products-${dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : ""}-to-${dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : ""}`}
+            additionalInfo={{
+              "Date Range": dateRange.from && dateRange.to ? `${format(dateRange.from, "PP")} - ${format(dateRange.to, "PP")}` : "All Time",
+              "Filter": searchTerm ? `Search: "${searchTerm}"` : "None"
+            }}
+          />
         </div>
       </div>
       
