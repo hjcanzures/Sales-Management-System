@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SearchBar } from "@/components/reports/SearchBar";
 import { Product } from "@/types";
 import { Button } from "@/components/ui/button";
-import { FileText, CalendarIcon } from "lucide-react";
+import { FileText, CalendarIcon, Download } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -23,6 +23,8 @@ import { Calendar } from "@/components/ui/calendar";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { PDFExportButton } from "./PDFExportButton";
+import { ProductDetailsModal } from "./ProductDetailsModal";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface TopProductsTableProps {
   products: Product[];
@@ -40,6 +42,8 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
   });
   const [isFiltering, setIsFiltering] = useState(true);
   const [monthSelectionOpen, setMonthSelectionOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productDetailsOpen, setProductDetailsOpen] = useState(false);
   
   // Generate year options (from current year back to 2000)
   const currentYear = new Date().getFullYear();
@@ -84,6 +88,11 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
       setSortColumn(column);
       setSortDirection("asc");
     }
+  };
+
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setProductDetailsOpen(true);
   };
 
   // Filtered and sorted products
@@ -220,224 +229,254 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <SearchBar
-          placeholder="Search products..."
-          onSearch={setSearchTerm}
-          className="w-full sm:max-w-sm"
-        />
-        <div className="flex flex-wrap gap-2 items-center">
-          <Select
-            value="custom"
-            onValueChange={handleQuickDateRange}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Select range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="thisMonth">This Month</SelectItem>
-              <SelectItem value="lastMonth">Last Month</SelectItem>
-              <SelectItem value="last3Months">Last 3 Months</SelectItem>
-              <SelectItem value="last6Months">Last 6 Months</SelectItem>
-              <SelectItem value="thisYear">This Year</SelectItem>
-              <SelectItem value="lastYear">Last Year</SelectItem>
-              <SelectItem value="custom">Custom Range</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Popover open={monthSelectionOpen} onOpenChange={setMonthSelectionOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn("justify-start text-left font-normal")}
+      <ProductDetailsModal 
+        product={selectedProduct} 
+        isOpen={productDetailsOpen} 
+        onClose={() => setProductDetailsOpen(false)} 
+        dateRange={dateRange}
+      />
+      
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle>Top Selling Products</CardTitle>
+              <CardDescription>View and analyze your best performing products</CardDescription>
+            </div>
+            <SearchBar
+              placeholder="Search products..."
+              onSearch={setSearchTerm}
+              className="w-full sm:max-w-sm"
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2 items-center justify-between mb-4">
+            <div className="flex flex-wrap gap-2">
+              <Select
+                value="custom"
+                onValueChange={handleQuickDateRange}
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from && dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "MMM yyyy")} - {format(dateRange.to, "MMM yyyy")}
-                  </>
-                ) : (
-                  <span>Select date range</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-4" align="start">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Date Range</h4>
-                  <div className="grid grid-cols-2 gap-2">
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Select range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="thisMonth">This Month</SelectItem>
+                  <SelectItem value="lastMonth">Last Month</SelectItem>
+                  <SelectItem value="last3Months">Last 3 Months</SelectItem>
+                  <SelectItem value="last6Months">Last 6 Months</SelectItem>
+                  <SelectItem value="thisYear">This Year</SelectItem>
+                  <SelectItem value="lastYear">Last Year</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Popover open={monthSelectionOpen} onOpenChange={setMonthSelectionOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn("justify-start text-left font-normal")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange.from && dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "MMM yyyy")} - {format(dateRange.to, "MMM yyyy")}
+                      </>
+                    ) : (
+                      <span>Select date range</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-4" align="start">
+                  <div className="grid gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">From</label>
-                      <Select value={fromYear} onValueChange={setFromYear}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Year" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[200px] overflow-y-auto">
-                          {yearOptions.map(year => (
-                            <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      
-                      <Select value={fromMonth} onValueChange={setFromMonth}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {months.map((month, index) => (
-                            <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <h4 className="font-medium">Date Range</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">From</label>
+                          <Select value={fromYear} onValueChange={setFromYear}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[200px] overflow-y-auto">
+                              {yearOptions.map(year => (
+                                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Select value={fromMonth} onValueChange={setFromMonth}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {months.map((month, index) => (
+                                <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">To</label>
+                          <Select value={toYear} onValueChange={setToYear}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[200px] overflow-y-auto">
+                              {yearOptions.map(year => (
+                                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Select value={toMonth} onValueChange={setToMonth}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Month" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {months.map((month, index) => (
+                                <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">To</label>
-                      <Select value={toYear} onValueChange={setToYear}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Year" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[200px] overflow-y-auto">
-                          {yearOptions.map(year => (
-                            <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      
-                      <Select value={toMonth} onValueChange={setToMonth}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {months.map((month, index) => (
-                            <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex items-center justify-between pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setMonthSelectionOpen(false);
+                          setIsFiltering(false);
+                        }}
+                      >
+                        Reset
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          updateDateRange();
+                          setMonthSelectionOpen(false);
+                        }}
+                      >
+                        Apply
+                      </Button>
                     </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center justify-between pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setMonthSelectionOpen(false);
-                      setIsFiltering(false);
-                    }}
-                  >
-                    Reset
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      updateDateRange();
-                      setMonthSelectionOpen(false);
-                    }}
-                  >
-                    Apply
-                  </Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <PDFExportButton
+              reportTitle="Top Selling Products Report"
+              reportData={filteredProducts}
+              columns={[
+                { header: "Rank", accessor: "rank" },
+                { header: "Product Code", accessor: "prodcode" },
+                { header: "Product Name", accessor: "name" },
+                { header: "Units Sold", accessor: "sales" },
+                { header: "Revenue", accessor: "revenue" }
+              ]}
+              filename={`top-products-${dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : ""}-to-${dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : ""}`}
+              additionalInfo={{
+                "Date Range": dateRange.from && dateRange.to ? `${format(dateRange.from, "PP")} - ${format(dateRange.to, "PP")}` : "All Time",
+                "Filter": searchTerm ? `Search: "${searchTerm}"` : "None"
+              }}
+              variant="default"
+            />
+          </div>
           
-          <PDFExportButton
-            reportTitle="Top Selling Products Report"
-            reportData={filteredProducts}
-            columns={[
-              { header: "Rank", accessor: "rank" },
-              { header: "Product Code", accessor: "prodcode" },
-              { header: "Product Name", accessor: "name" },
-              { header: "Units Sold", accessor: "sales" },
-              { header: "Revenue", accessor: "revenue" }
-            ]}
-            filename={`top-products-${dateRange.from ? format(dateRange.from, "yyyy-MM-dd") : ""}-to-${dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : ""}`}
-            additionalInfo={{
-              "Date Range": dateRange.from && dateRange.to ? `${format(dateRange.from, "PP")} - ${format(dateRange.to, "PP")}` : "All Time",
-              "Filter": searchTerm ? `Search: "${searchTerm}"` : "None"
-            }}
-          />
-        </div>
-      </div>
-      
-      {isFiltering && dateRange.from && dateRange.to && (
-        <div className="bg-muted/50 text-muted-foreground rounded-md py-2 px-3 text-sm flex justify-between items-center">
-          <span>
-            Filtering products with sales from {format(dateRange.from, "PP")} to {format(dateRange.to, "PP")}
-          </span>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => {
-              setDateRange({ from: undefined, to: undefined });
-              setIsFiltering(false);
-            }}
-          >
-            Clear Filter
-          </Button>
-        </div>
-      )}
+          {isFiltering && dateRange.from && dateRange.to && (
+            <div className="bg-muted/50 text-muted-foreground rounded-md py-2 px-3 text-sm flex justify-between items-center mb-4">
+              <span>
+                Filtering products with sales from {format(dateRange.from, "PP")} to {format(dateRange.to, "PP")}
+              </span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  setDateRange({ from: undefined, to: undefined });
+                  setIsFiltering(false);
+                }}
+              >
+                Clear Filter
+              </Button>
+            </div>
+          )}
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead
-                className="cursor-pointer"
-                onClick={() => handleSort("rank")}
-              >
-                Rank {sortColumn === "rank" && (sortDirection === "asc" ? "↑" : "↓")}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer"
-                onClick={() => handleSort("prodcode")}
-              >
-                Product Code {sortColumn === "prodcode" && (sortDirection === "asc" ? "↑" : "↓")}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer"
-                onClick={() => handleSort("name")}
-              >
-                Product {sortColumn === "name" && (sortDirection === "asc" ? "↑" : "↓")}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer text-right"
-                onClick={() => handleSort("sales")}
-              >
-                Units Sold {sortColumn === "sales" && (sortDirection === "asc" ? "↑" : "↓")}
-              </TableHead>
-              <TableHead
-                className="cursor-pointer text-right"
-                onClick={() => handleSort("revenue")}
-              >
-                Revenue {sortColumn === "revenue" && (sortDirection === "asc" ? "↑" : "↓")}
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProducts.map((product) => (
-              <TableRow key={product.prodcode}>
-                <TableCell>{product.rank}</TableCell>
-                <TableCell>{product.prodcode}</TableCell>
-                <TableCell>{product.name}</TableCell>
-                <TableCell className="text-right">{product.sales}</TableCell>
-                <TableCell className="text-right">${(product.revenue || 0).toLocaleString()}</TableCell>
-              </TableRow>
-            ))}
-            {filteredProducts.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-6">
-                  {isFiltering 
-                    ? `No products found with sales in the selected date range${searchTerm ? ` matching "${searchTerm}"` : ""}`
-                    : searchTerm 
-                      ? `No products found matching "${searchTerm}"`
-                      : "No products available"}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          <div className="rounded-md border overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead
+                    className="cursor-pointer font-semibold"
+                    onClick={() => handleSort("rank")}
+                  >
+                    Rank {sortColumn === "rank" && (sortDirection === "asc" ? " ↑" : " ↓")}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer font-semibold"
+                    onClick={() => handleSort("prodcode")}
+                  >
+                    Product Code {sortColumn === "prodcode" && (sortDirection === "asc" ? " ↑" : " ↓")}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer font-semibold"
+                    onClick={() => handleSort("name")}
+                  >
+                    Product {sortColumn === "name" && (sortDirection === "asc" ? " ↑" : " ↓")}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer text-right font-semibold"
+                    onClick={() => handleSort("sales")}
+                  >
+                    Units Sold {sortColumn === "sales" && (sortDirection === "asc" ? " ↑" : " ↓")}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer text-right font-semibold"
+                    onClick={() => handleSort("revenue")}
+                  >
+                    Revenue {sortColumn === "revenue" && (sortDirection === "asc" ? " ↑" : " ↓")}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.map((product) => (
+                  <TableRow 
+                    key={product.prodcode} 
+                    className="cursor-pointer hover:bg-muted/80"
+                    onClick={() => handleProductClick(product)}
+                  >
+                    <TableCell>{product.rank}</TableCell>
+                    <TableCell>
+                      <span className="font-mono text-sm">{product.prodcode}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium text-primary hover:underline">
+                        {product.name}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">{product.sales?.toLocaleString() || 0}</TableCell>
+                    <TableCell className="text-right font-medium">${(product.revenue || 0).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+                {filteredProducts.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-6">
+                      {isFiltering 
+                        ? `No products found with sales in the selected date range${searchTerm ? ` matching "${searchTerm}"` : ""}`
+                        : searchTerm 
+                          ? `No products found matching "${searchTerm}"`
+                          : "No products available"}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
