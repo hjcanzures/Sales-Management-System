@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { FilePdf } from "lucide-react";
+import { FileText } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
@@ -52,7 +52,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
   
   return (
     <Button variant={variant} onClick={exportToPDF}>
-      <FilePdf className="mr-2 h-4 w-4" /> Export PDF
+      <FileText className="mr-2 h-4 w-4" /> Export PDF
     </Button>
   );
 };

@@ -9,9 +9,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, FileText } from "lucide-react";
 import { Sale, SaleDetail } from "@/types";
-import { FilePdf } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
@@ -142,7 +141,7 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
             Close
           </Button>
           <Button variant="default" onClick={generatePDF} disabled={!sale}>
-            <FilePdf className="h-4 w-4 mr-2" /> Export PDF
+            <FileText className="h-4 w-4 mr-2" /> Export PDF
           </Button>
         </DialogFooter>
       </DialogContent>

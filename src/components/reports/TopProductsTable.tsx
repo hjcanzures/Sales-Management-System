@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SearchBar } from "@/components/reports/SearchBar";
 import { Product } from "@/types";
 import { Button } from "@/components/ui/button";
-import { FilePdf } from "lucide-react";
+import { FileText } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
@@ -89,7 +89,7 @@ export function TopProductsTable({ products, onGeneratePDF }: TopProductsTablePr
           className="max-w-sm"
         />
         <Button variant="outline" onClick={handleGeneratePDF}>
-          <FilePdf className="mr-2 h-4 w-4" /> Export PDF
+          <FileText className="mr-2 h-4 w-4" /> Export PDF
         </Button>
       </div>
 

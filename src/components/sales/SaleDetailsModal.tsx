@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { X, Printer, FileText } from "lucide-react";
+import { Printer, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -107,16 +107,15 @@ export const SaleDetailsModal = ({ sale, isOpen, onClose }: SaleDetailsModalProp
         e.preventDefault(); 
         onClose();
       }}>
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <div>
-            <DialogTitle>Sale Details</DialogTitle>
-            <DialogDescription>
-              Transaction #{sale.transno} details
-            </DialogDescription>
+        <DialogHeader>
+          <div className="flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle>Sale Details</DialogTitle>
+              <DialogDescription>
+                Transaction #{sale.transno} details
+              </DialogDescription>
+            </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full">
-            <X className="h-4 w-4" />
-          </Button>
         </DialogHeader>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
