@@ -8,8 +8,9 @@ import "jspdf-autotable";
 interface PDFExportButtonProps {
   reportTitle: string;
   reportData: any[];
-  columns: string[];
+  columns: { header: string; accessor: string }[];
   filename: string;
+  additionalInfo?: { [key: string]: string };
   variant?: "default" | "outline" | "secondary";
 }
 
@@ -18,6 +19,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
   reportData,
   columns,
   filename,
+  additionalInfo = {},
   variant = "outline",
 }) => {
   const exportToPDF = () => {
@@ -31,23 +33,45 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
     doc.setFontSize(12);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 32);
     
-    // Prepare column data for autoTable
-    const tableColumns = columns.map(col => ({
-      header: col,
-      dataKey: col.toLowerCase().replace(/\s/g, '')
-    }));
+    // Add additional info if provided
+    let yPosition = 42;
+    Object.entries(additionalInfo).forEach(([key, value]) => {
+      doc.text(`${key}: ${value}`, 14, yPosition);
+      yPosition += 10;
+    });
+    
+    // Prepare column headers and row data for autoTable
+    const tableHeaders = columns.map(col => col.header);
+    
+    const tableData = reportData.map(item => 
+      columns.map(column => {
+        const value = typeof item[column.accessor] !== 'undefined' 
+          ? item[column.accessor]
+          : column.accessor.split('.').reduce((obj, key) => obj && obj[key], item);
+          
+        // Format numbers as currency if they appear to be monetary values
+        if (typeof value === 'number' && 
+           (column.header.toLowerCase().includes('revenue') || 
+            column.header.toLowerCase().includes('amount') || 
+            column.header.toLowerCase().includes('price'))) {
+          return `$${value.toLocaleString()}`;
+        }
+        
+        return value;
+      })
+    );
     
     // Add table
     (doc as any).autoTable({
-      startY: 40,
-      head: [columns],
-      body: reportData,
+      startY: yPosition,
+      head: [tableHeaders],
+      body: tableData,
       theme: 'striped',
       headStyles: { fillColor: [41, 128, 185], textColor: 255 }
     });
     
     // Save the PDF
-    doc.save(`${filename}.pdf`);
+    doc.save(`${filename}-${new Date().toISOString().slice(0,10)}.pdf`);
   };
   
   return (

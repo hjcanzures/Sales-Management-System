@@ -1,10 +1,11 @@
-import { useState } from "react";
+
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { Calendar as CalendarIcon, Download, FileText, Search, ChartBarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -12,14 +13,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@/components/ui/navigation-menu";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSalesData } from "@/hooks/useSalesData";
 import { useProductsData } from "@/hooks/useProductsData";
 import { useEmployeesData } from "@/hooks/useEmployeesData";
 import { SearchBar } from "@/components/reports/SearchBar";
 import { TopProductsTable } from "@/components/reports/TopProductsTable";
+import { PDFExportButton } from "@/components/reports/PDFExportButton";
 
 const Reports = () => {
   const { sales, loading: salesLoading } = useSalesData();
@@ -30,13 +30,14 @@ const Reports = () => {
   const [reportType, setReportType] = useState("sales");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("sales");
-  const [saleRange, setSaleRange] = useState({ from: "", to: "" });
+  const [dateRange, setDateRange] = useState({ 
+    from: subMonths(new Date(), 1),
+    to: new Date() 
+  });
   const [currentSection, setCurrentSection] = useState("charts");
-  const [sortColumn, setSortColumn] = useState("rank");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   
   // Calculate data for charts from real data
-  const monthlySalesData = (() => {
+  const monthlySalesData = useMemo(() => {
     const monthlyData: { [key: string]: number } = {};
     sales.forEach(sale => {
       if (sale.salesdate) {
@@ -46,79 +47,93 @@ const Reports = () => {
       }
     });
     
-    return Object.entries(monthlyData).map(([month, sales]) => ({
-      month,
-      sales
+    return Object.entries(monthlyData)
+      .map(([month, sales]) => ({
+        month,
+        sales
+      }))
+      .sort((a, b) => {
+        // Sort by date (assuming month is in format "MMM yyyy")
+        const dateA = new Date(a.month);
+        const dateB = new Date(b.month);
+        return dateA.getTime() - dateB.getTime();
+      });
+  }, [sales]);
+
+  const productPerformanceData = useMemo(() => {
+    return products.slice(0, 10).map(product => ({
+      name: product.name || product.description || "",
+      sales: product.sales || 0,
+      revenue: product.revenue || 0
     }));
-  })();
+  }, [products]);
 
-  const productPerformanceData = products.slice(0, 5).map(product => ({
-    name: product.name || product.description || "",
-    sales: product.sales || 0,
-    revenue: product.revenue || 0
-  }));
-
-  const employeePerformanceData = employees.slice(0, 5).map(employee => ({
-    name: employee.name || `${employee.firstname || ""} ${employee.lastname || ""}`.trim(),
-    sales: employee.sales || 0,
-    revenue: employee.revenue || 0
-  }));
+  const employeePerformanceData = useMemo(() => {
+    return employees.slice(0, 10).map(employee => ({
+      name: employee.name || `${employee.firstname || ""} ${employee.lastname || ""}`.trim(),
+      sales: employee.sales || 0,
+      revenue: employee.revenue || 0
+    }));
+  }, [employees]);
 
   // Filter sales based on search term
-  const filteredSales = sales.filter(sale => 
-    sale.transno?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sale.customer?.custname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    `${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim().toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSales = useMemo(() => {
+    return sales.filter(sale => 
+      sale.transno?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sale.customer?.custname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      `${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim().toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [sales, searchQuery]);
 
-  // Handle PDF generation for reports
-  const handleGenerateReportPDF = () => {
-    const doc = new jsPDF();
-    const title = reportType === "sales" ? "Monthly Sales Report" : 
-                  reportType === "products" ? "Product Performance Report" : 
-                  reportType === "topProducts" ? "Top Selling Products Report" :
-                  "Employee Performance Report";
+  // PDF export functions for different report types
+  const handleGenerateSalesReportPDF = () => {
+    const columns = [
+      { header: "Month", accessor: "month" },
+      { header: "Sales ($)", accessor: "sales" }
+    ];
     
-    // Add title
-    doc.setFontSize(18);
-    doc.text(title, 14, 22);
+    return (
+      <PDFExportButton
+        reportTitle="Monthly Sales Report"
+        reportData={monthlySalesData}
+        columns={columns}
+        filename="monthly-sales-report"
+      />
+    );
+  };
+  
+  const handleGenerateProductReportPDF = () => {
+    const columns = [
+      { header: "Product", accessor: "name" },
+      { header: "Units Sold", accessor: "sales" },
+      { header: "Revenue ($)", accessor: "revenue" }
+    ];
     
-    // Add report metadata
-    doc.setFontSize(12);
-    doc.text(`Generated: ${format(new Date(), "PP")}`, 14, 32);
+    return (
+      <PDFExportButton
+        reportTitle="Product Performance Report"
+        reportData={productPerformanceData}
+        columns={columns}
+        filename="product-performance-report"
+      />
+    );
+  };
+  
+  const handleGenerateEmployeeReportPDF = () => {
+    const columns = [
+      { header: "Employee", accessor: "name" },
+      { header: "Sales Count", accessor: "sales" },
+      { header: "Revenue ($)", accessor: "revenue" }
+    ];
     
-    // Define the data based on report type
-    let reportData = [];
-    let columns = [];
-    
-    if (reportType === "sales") {
-      columns = [["Month", "Sales ($)"]];
-      reportData = monthlySalesData.map(item => [item.month, item.sales]);
-    } else if (reportType === "products") {
-      columns = [["Product", "Units Sold", "Revenue ($)"]];
-      reportData = productPerformanceData.map(item => [item.name, item.sales, item.revenue]);
-    } else if (reportType === "topProducts") {
-      columns = [["Rank", "Product Code", "Product", "Units Sold", "Revenue ($)"]];
-      reportData = products
-        .filter(p => p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                     p.prodcode?.toLowerCase().includes(searchQuery.toLowerCase()))
-        .map(item => [item.rank, item.prodcode, item.name, item.sales, item.revenue]);
-    } else {
-      columns = [["Employee", "Sales Count", "Revenue ($)"]];
-      reportData = employeePerformanceData.map(item => [item.name, item.sales, item.revenue]);
-    }
-    
-    // Add table with data
-    (doc as any).autoTable({
-      startY: 40,
-      head: columns,
-      body: reportData,
-      theme: 'striped',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
-    });
-    
-    // Save the PDF
-    doc.save(`${reportType}-report.pdf`);
+    return (
+      <PDFExportButton
+        reportTitle="Employee Performance Report"
+        reportData={employeePerformanceData}
+        columns={columns}
+        filename="employee-performance-report"
+      />
+    );
   };
   
   // Handle PDF generation for sales transaction
@@ -136,7 +151,7 @@ const Reports = () => {
     doc.setFontSize(12);
     doc.text(`Transaction: ${sale.transno}`, 14, 35);
     doc.text(`Customer: ${sale.customer?.custname || "N/A"}`, 14, 45);
-    doc.text(`Date: ${sale.salesdate || "N/A"}`, 14, 55);
+    doc.text(`Date: ${sale.salesdate ? format(new Date(sale.salesdate), "PP") : "N/A"}`, 14, 55);
     doc.text(`Total Amount: $${(sale.totalAmount || 0).toFixed(2)}`, 14, 65);
     
     // Add sales details if available
@@ -308,14 +323,14 @@ const Reports = () => {
                   selected={date}
                   onSelect={setDate}
                   initialFocus
+                  className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
             
-            <Button variant="outline" onClick={handleGenerateReportPDF}>
-              <Download className="mr-2 h-4 w-4" />
-              Export PDF
-            </Button>
+            {reportType === "sales" && handleGenerateSalesReportPDF()}
+            {reportType === "products" && handleGenerateProductReportPDF()}
+            {reportType === "employees" && handleGenerateEmployeeReportPDF()}
           </div>
         </div>
       )}
@@ -331,7 +346,6 @@ const Reports = () => {
           <CardContent>
             <TopProductsTable 
               products={products} 
-              onGeneratePDF={handleGenerateReportPDF} 
               salesData={sales}
             />
           </CardContent>
@@ -371,7 +385,7 @@ const Reports = () => {
                         <TableCell>{sale.transno}</TableCell>
                         <TableCell>{sale.customer?.custname}</TableCell>
                         <TableCell>{`${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim()}</TableCell>
-                        <TableCell>{sale.salesdate}</TableCell>
+                        <TableCell>{sale.salesdate ? format(new Date(sale.salesdate), "PP") : ""}</TableCell>
                         <TableCell>${(sale.totalAmount || 0).toFixed(2)}</TableCell>
                         <TableCell>
                           <Button variant="outline" size="sm" onClick={() => handleGenerateSalesPDF(sale.transno || "")}>
@@ -404,55 +418,10 @@ const Reports = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="fromDate">From Date</Label>
-                  <Input 
-                    id="fromDate" 
-                    type="date" 
-                    value={saleRange.from} 
-                    onChange={(e) => setSaleRange(prev => ({...prev, from: e.target.value}))} 
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="toDate">To Date</Label>
-                  <Input 
-                    id="toDate" 
-                    type="date" 
-                    value={saleRange.to} 
-                    onChange={(e) => setSaleRange(prev => ({...prev, to: e.target.value}))} 
-                  />
-                </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button>Generate Report</Button>
-              </div>
-              
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={productPerformanceData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                    <Legend />
-                    <Bar dataKey="sales" name="Units Sold" fill="#0ea5e9" />
-                    <Bar dataKey="revenue" name="Revenue" fill="#22c55e" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={handleGenerateReportPDF}>
-                  <FileText className="h-4 w-4 mr-2" /> Download PDF
-                </Button>
-              </div>
-            </div>
+            <TopProductsTable 
+              products={products} 
+              salesData={sales}
+            />
           </CardContent>
         </Card>
       )}
@@ -491,9 +460,7 @@ const Reports = () => {
               </div>
               
               <div className="flex justify-end">
-                <Button variant="outline" onClick={handleGenerateReportPDF}>
-                  <FileText className="h-4 w-4 mr-2" /> Download PDF
-                </Button>
+                {handleGenerateProductReportPDF()}
               </div>
             </div>
           </CardContent>
@@ -668,7 +635,7 @@ const Reports = () => {
                           <TableCell>{item.transno}</TableCell>
                           <TableCell>{item.customer?.custname}</TableCell>
                           <TableCell>{`${item.employee?.firstname || ""} ${item.employee?.lastname || ""}`.trim()}</TableCell>
-                          <TableCell>{item.salesdate}</TableCell>
+                          <TableCell>{item.salesdate ? format(new Date(item.salesdate), "PP") : ""}</TableCell>
                           <TableCell className="text-right">{(item.totalAmount || 0).toLocaleString()}</TableCell>
                         </TableRow>
                       ))}

@@ -1,20 +1,28 @@
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchBar } from "@/components/reports/SearchBar";
 import { Product } from "@/types";
 import { Button } from "@/components/ui/button";
 import { FileText, CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { PDFExportButton } from "./PDFExportButton";
 
 interface TopProductsTableProps {
   products: Product[];
@@ -27,10 +35,42 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
   const [sortColumn, setSortColumn] = useState<keyof Product>("rank");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
+    from: subMonths(new Date(), 1),
+    to: new Date(),
   });
-  const [isFiltering, setIsFiltering] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(true);
+  const [monthSelectionOpen, setMonthSelectionOpen] = useState(false);
+  
+  // Generate year options (current year and 4 years back)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  
+  // Month options
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  
+  const [fromYear, setFromYear] = useState(currentYear.toString());
+  const [fromMonth, setFromMonth] = useState("0"); // January (0-indexed)
+  const [toYear, setToYear] = useState(currentYear.toString());
+  const [toMonth, setToMonth] = useState("11"); // December (0-indexed)
+
+  // Update date range when year or month selections change
+  const updateDateRange = () => {
+    const fromDate = startOfMonth(new Date(parseInt(fromYear), parseInt(fromMonth), 1));
+    const toDate = endOfMonth(new Date(parseInt(toYear), parseInt(toMonth), 1));
+    
+    // Validate that fromDate is before toDate
+    if (fromDate <= toDate) {
+      setDateRange({ from: fromDate, to: toDate });
+      setIsFiltering(true);
+    } else {
+      // If invalid range, swap the values
+      setDateRange({ from: toDate, to: fromDate });
+      setIsFiltering(true);
+    }
+  };
 
   const handleSort = (column: keyof Product) => {
     if (sortColumn === column) {
@@ -41,56 +81,58 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
     }
   };
 
-  // Filter products by date range if applicable
-  const filteredProducts = products
-    .filter((product) => {
-      // Text search filter
-      const textMatch = 
-        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.prodcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filtered and sorted products
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter((product) => {
+        // Text search filter
+        const textMatch = 
+          product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.prodcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.description?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      // If we're not filtering by date or date range is incomplete, only apply text filter
-      if (!isFiltering || !dateRange.from || !dateRange.to) {
-        return textMatch;
-      }
+        // If we're not filtering by date or date range is incomplete, only apply text filter
+        if (!isFiltering || !dateRange.from || !dateRange.to) {
+          return textMatch;
+        }
 
-      // If we have salesData, filter by date range
-      if (salesData && salesData.length > 0) {
-        const productSales = salesData.filter(sale => {
-          // Check if the sale is for this product
-          const hasProduct = sale.saleDetails?.some((detail: any) => 
-            detail.prodcode === product.prodcode
-          );
+        // If we have salesData, filter by date range
+        if (salesData && salesData.length > 0) {
+          const productSales = salesData.filter(sale => {
+            // Check if the sale is for this product
+            const hasProduct = sale.saleDetails?.some((detail: any) => 
+              detail.prodcode === product.prodcode
+            );
+            
+            // Check if sale date is within range
+            const saleDate = new Date(sale.salesdate);
+            const inDateRange = saleDate >= dateRange.from! && saleDate <= dateRange.to!;
+            
+            return hasProduct && inDateRange;
+          });
           
-          // Check if sale date is within range
-          const saleDate = new Date(sale.salesdate);
-          const inDateRange = saleDate >= dateRange.from! && saleDate <= dateRange.to!;
-          
-          return hasProduct && inDateRange;
-        });
+          return textMatch && productSales.length > 0;
+        }
         
-        return textMatch && productSales.length > 0;
-      }
-      
-      return textMatch;
-    })
-    .sort((a, b) => {
-      const aValue = a[sortColumn];
-      const bValue = b[sortColumn];
+        return textMatch;
+      })
+      .sort((a, b) => {
+        const aValue = a[sortColumn];
+        const bValue = b[sortColumn];
 
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
-      }
+        if (typeof aValue === "number" && typeof bValue === "number") {
+          return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
+        }
 
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortDirection === "asc"
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
+        if (typeof aValue === "string" && typeof bValue === "string") {
+          return sortDirection === "asc"
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        }
 
-      return 0;
-    });
+        return 0;
+      });
+  }, [products, searchTerm, sortColumn, sortDirection, isFiltering, dateRange, salesData]);
 
   const handleGeneratePDF = () => {
     if (onGeneratePDF) {
@@ -132,15 +174,43 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
     doc.save(filename);
   };
 
-  const handleApplyDateFilter = () => {
-    if (dateRange.from && dateRange.to) {
-      setIsFiltering(true);
+  const handleQuickDateRange = (range: string) => {
+    const now = new Date();
+    let fromDate: Date;
+    const toDate = now;
+    
+    switch (range) {
+      case 'thisMonth':
+        fromDate = startOfMonth(now);
+        break;
+      case 'lastMonth':
+        fromDate = startOfMonth(subMonths(now, 1));
+        break;
+      case 'last3Months':
+        fromDate = startOfMonth(subMonths(now, 3));
+        break;
+      case 'last6Months':
+        fromDate = startOfMonth(subMonths(now, 6));
+        break;
+      case 'thisYear':
+        fromDate = new Date(now.getFullYear(), 0, 1); // January 1st of current year
+        break;
+      case 'lastYear':
+        fromDate = new Date(now.getFullYear() - 1, 0, 1); // January 1st of last year
+        break;
+      default:
+        fromDate = subMonths(now, 1); // Default to last month
     }
-  };
-
-  const handleResetDateFilter = () => {
-    setDateRange({ from: undefined, to: undefined });
-    setIsFiltering(false);
+    
+    setDateRange({ from: fromDate, to: toDate });
+    
+    // Update the dropdown selections to match
+    setFromYear(fromDate.getFullYear().toString());
+    setFromMonth(fromDate.getMonth().toString());
+    setToYear(toDate.getFullYear().toString());
+    setToMonth(toDate.getMonth().toString());
+    
+    setIsFiltering(true);
   };
 
   return (
@@ -152,43 +222,116 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
           className="w-full sm:max-w-sm"
         />
         <div className="flex flex-wrap gap-2 items-center">
-          <Popover>
+          <Select
+            value="custom"
+            onValueChange={handleQuickDateRange}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Select range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="thisMonth">This Month</SelectItem>
+              <SelectItem value="lastMonth">Last Month</SelectItem>
+              <SelectItem value="last3Months">Last 3 Months</SelectItem>
+              <SelectItem value="last6Months">Last 6 Months</SelectItem>
+              <SelectItem value="thisYear">This Year</SelectItem>
+              <SelectItem value="lastYear">Last Year</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Popover open={monthSelectionOpen} onOpenChange={setMonthSelectionOpen}>
             <PopoverTrigger asChild>
               <Button
-                id="date"
                 variant={"outline"}
-                className={cn(
-                  "justify-start text-left font-normal",
-                  !dateRange.from && !dateRange.to && "text-muted-foreground"
-                )}
+                className={cn("justify-start text-left font-normal")}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {dateRange.from && dateRange.to ? (
                   <>
-                    {format(dateRange.from, "PPP")} - {format(dateRange.to, "PPP")}
+                    {format(dateRange.from, "MMM yyyy")} - {format(dateRange.to, "MMM yyyy")}
                   </>
                 ) : (
                   <span>Select date range</span>
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange.from}
-                selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-                numberOfMonths={2}
-                className="pointer-events-auto"
-              />
-              <div className="flex items-center justify-between p-3 border-t border-border">
-                <Button variant="ghost" size="sm" onClick={handleResetDateFilter}>
-                  Reset
-                </Button>
-                <Button size="sm" onClick={handleApplyDateFilter}>
-                  Apply Filter
-                </Button>
+            <PopoverContent className="w-auto p-4" align="start">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Date Range</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">From</label>
+                      <Select value={fromYear} onValueChange={setFromYear}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {yearOptions.map(year => (
+                            <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select value={fromMonth} onValueChange={setFromMonth}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {months.map((month, index) => (
+                            <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">To</label>
+                      <Select value={toYear} onValueChange={setToYear}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {yearOptions.map(year => (
+                            <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select value={toMonth} onValueChange={setToMonth}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {months.map((month, index) => (
+                            <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setMonthSelectionOpen(false);
+                      setIsFiltering(false);
+                    }}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      updateDateRange();
+                      setMonthSelectionOpen(false);
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
@@ -204,7 +347,14 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
           <span>
             Filtering products with sales from {format(dateRange.from, "PP")} to {format(dateRange.to, "PP")}
           </span>
-          <Button variant="ghost" size="sm" onClick={handleResetDateFilter}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              setDateRange({ from: undefined, to: undefined });
+              setIsFiltering(false);
+            }}
+          >
             Clear Filter
           </Button>
         </div>
