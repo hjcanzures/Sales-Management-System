@@ -5,7 +5,7 @@ import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { Calendar as CalendarIcon, Download, FileText, Search, ChartBarIcon } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -287,6 +287,7 @@ const Reports = () => {
                   { header: "Sales ($)", accessor: "sales" }
                 ]}
                 filename="monthly-sales-report"
+                variant="default"
               />
             )}
             {reportType === "products" && (
@@ -299,6 +300,7 @@ const Reports = () => {
                   { header: "Revenue ($)", accessor: "revenue" }
                 ]}
                 filename="product-performance-report"
+                variant="default"
               />
             )}
             {reportType === "employees" && (
@@ -311,6 +313,7 @@ const Reports = () => {
                   { header: "Revenue ($)", accessor: "revenue" }
                 ]}
                 filename="employee-performance-report"
+                variant="default"
               />
             )}
           </div>
@@ -371,7 +374,7 @@ const Reports = () => {
                         <TableCell>${(sale.totalAmount || 0).toFixed(2)}</TableCell>
                         <TableCell>
                           <Button variant="outline" size="sm" onClick={() => handleGenerateSalesPDF(sale.transno || "")}>
-                            <FileText className="h-4 w-4 mr-1" /> PDF
+                            <Download className="h-4 w-4 mr-1" /> Download PDF
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -451,6 +454,7 @@ const Reports = () => {
                     { header: "Revenue ($)", accessor: "revenue" }
                   ]}
                   filename="product-performance-report"
+                  variant="default"
                 />
               </div>
             </div>
@@ -509,6 +513,7 @@ const Reports = () => {
                       { header: "Sales ($)", accessor: "sales" }
                     ]}
                     filename="monthly-sales-report"
+                    variant="default"
                   />
                 </div>
               </Card>
@@ -559,6 +564,7 @@ const Reports = () => {
                       { header: "Revenue ($)", accessor: "revenue" }
                     ]}
                     filename="product-performance-report"
+                    variant="default"
                   />
                 </div>
               </Card>
@@ -609,6 +615,7 @@ const Reports = () => {
                       { header: "Revenue ($)", accessor: "revenue" }
                     ]}
                     filename="employee-performance-report"
+                    variant="default"
                   />
                 </div>
               </Card>
@@ -711,6 +718,7 @@ const Reports = () => {
                         { header: "Total Amount", accessor: "totalAmount" }
                       ]}
                       filename="sales-data-report"
+                      variant="default"
                     />
                   )}
                   {reportType === "products" && (
@@ -725,6 +733,7 @@ const Reports = () => {
                         { header: "Revenue", accessor: "revenue" }
                       ]}
                       filename="product-data-report"
+                      variant="default"
                     />
                   )}
                   {reportType === "employees" && (
@@ -739,6 +748,7 @@ const Reports = () => {
                         { header: "Revenue", accessor: "revenue" }
                       ]}
                       filename="employee-data-report"
+                      variant="default"
                     />
                   )}
                 </div>

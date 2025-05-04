@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { FileText, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { formatCurrency } from "@/lib/utils";
@@ -63,7 +63,13 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
           return formatCurrency(value);
         }
         
-        return value !== undefined && value !== null ? value : '';
+        // Convert Date objects to strings if needed
+        if (value instanceof Date) {
+          return value.toLocaleDateString();
+        }
+        
+        // Make sure we always return a string value for the PDF table
+        return value !== undefined && value !== null ? String(value) : '';
       })
     );
     
@@ -82,7 +88,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
   
   return (
     <Button variant={variant} onClick={exportToPDF}>
-      <FileText className="mr-2 h-4 w-4" /> Export PDF
+      <Download className="mr-2 h-4 w-4" /> Download PDF
     </Button>
   );
 };

@@ -3,8 +3,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SearchBar } from "@/components/reports/SearchBar";
 import { Product } from "@/types";
 import { Button } from "@/components/ui/button";
-import { FileText, CalendarIcon, Download } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
+import { CalendarIcon, Download } from "lucide-react";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -18,9 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import { PDFExportButton } from "./PDFExportButton";
 import { ProductDetailsModal } from "./ProductDetailsModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -356,17 +353,7 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
                       <Button
                         onClick={() => {
                           // Update date range based on the selected year and month
-                          const fromDate = startOfMonth(new Date(parseInt(fromYear), parseInt(fromMonth), 1));
-                          const toDate = endOfMonth(new Date(parseInt(toYear), parseInt(toMonth), 1));
-                          
-                          // Validate that fromDate is before toDate
-                          if (fromDate <= toDate) {
-                            setDateRange({ from: fromDate, to: toDate });
-                          } else {
-                            // If invalid range, swap the values
-                            setDateRange({ from: toDate, to: fromDate });
-                          }
-                          setIsFiltering(true);
+                          updateDateRange();
                           setMonthSelectionOpen(false);
                         }}
                       >
