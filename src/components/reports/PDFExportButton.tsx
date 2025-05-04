@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { formatCurrency } from "@/lib/utils";
 
 interface PDFExportButtonProps {
   reportTitle: string;
@@ -45,19 +46,24 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
     
     const tableData = reportData.map(item => 
       columns.map(column => {
-        const value = typeof item[column.accessor] !== 'undefined' 
-          ? item[column.accessor]
-          : column.accessor.split('.').reduce((obj, key) => obj && obj[key], item);
-          
+        let value;
+        
+        // Handle nested properties with dot notation
+        if (column.accessor.includes('.')) {
+          value = column.accessor.split('.').reduce((obj, key) => obj && obj[key], item);
+        } else {
+          value = item[column.accessor];
+        }
+        
         // Format numbers as currency if they appear to be monetary values
         if (typeof value === 'number' && 
            (column.header.toLowerCase().includes('revenue') || 
             column.header.toLowerCase().includes('amount') || 
             column.header.toLowerCase().includes('price'))) {
-          return `$${value.toLocaleString()}`;
+          return formatCurrency(value);
         }
         
-        return value;
+        return value !== undefined && value !== null ? value : '';
       })
     );
     

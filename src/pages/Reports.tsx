@@ -86,58 +86,7 @@ const Reports = () => {
     );
   }, [sales, searchQuery]);
 
-  // PDF export functions for different report types
-  const handleGenerateSalesReportPDF = () => {
-    const columns = [
-      { header: "Month", accessor: "month" },
-      { header: "Sales ($)", accessor: "sales" }
-    ];
-    
-    return (
-      <PDFExportButton
-        reportTitle="Monthly Sales Report"
-        reportData={monthlySalesData}
-        columns={columns}
-        filename="monthly-sales-report"
-      />
-    );
-  };
-  
-  const handleGenerateProductReportPDF = () => {
-    const columns = [
-      { header: "Product", accessor: "name" },
-      { header: "Units Sold", accessor: "sales" },
-      { header: "Revenue ($)", accessor: "revenue" }
-    ];
-    
-    return (
-      <PDFExportButton
-        reportTitle="Product Performance Report"
-        reportData={productPerformanceData}
-        columns={columns}
-        filename="product-performance-report"
-      />
-    );
-  };
-  
-  const handleGenerateEmployeeReportPDF = () => {
-    const columns = [
-      { header: "Employee", accessor: "name" },
-      { header: "Sales Count", accessor: "sales" },
-      { header: "Revenue ($)", accessor: "revenue" }
-    ];
-    
-    return (
-      <PDFExportButton
-        reportTitle="Employee Performance Report"
-        reportData={employeePerformanceData}
-        columns={columns}
-        filename="employee-performance-report"
-      />
-    );
-  };
-  
-  // Handle PDF generation for sales transaction
+  // PDF export for sales transactions
   const handleGenerateSalesPDF = (transactionId: string) => {
     const sale = sales.find(s => s.transno === transactionId);
     
@@ -329,9 +278,41 @@ const Reports = () => {
               </PopoverContent>
             </Popover>
             
-            {reportType === "sales" && handleGenerateSalesReportPDF()}
-            {reportType === "products" && handleGenerateProductReportPDF()}
-            {reportType === "employees" && handleGenerateEmployeeReportPDF()}
+            {reportType === "sales" && (
+              <PDFExportButton
+                reportTitle="Monthly Sales Report"
+                reportData={monthlySalesData}
+                columns={[
+                  { header: "Month", accessor: "month" },
+                  { header: "Sales ($)", accessor: "sales" }
+                ]}
+                filename="monthly-sales-report"
+              />
+            )}
+            {reportType === "products" && (
+              <PDFExportButton
+                reportTitle="Product Performance Report"
+                reportData={productPerformanceData}
+                columns={[
+                  { header: "Product", accessor: "name" },
+                  { header: "Units Sold", accessor: "sales" },
+                  { header: "Revenue ($)", accessor: "revenue" }
+                ]}
+                filename="product-performance-report"
+              />
+            )}
+            {reportType === "employees" && (
+              <PDFExportButton
+                reportTitle="Employee Performance Report"
+                reportData={employeePerformanceData}
+                columns={[
+                  { header: "Employee", accessor: "name" },
+                  { header: "Sales Count", accessor: "sales" },
+                  { header: "Revenue ($)", accessor: "revenue" }
+                ]}
+                filename="employee-performance-report"
+              />
+            )}
           </div>
         </div>
       )}
@@ -461,7 +442,16 @@ const Reports = () => {
               </div>
               
               <div className="flex justify-end">
-                {handleGenerateProductReportPDF()}
+                <PDFExportButton
+                  reportTitle="Product Performance Report"
+                  reportData={productPerformanceData}
+                  columns={[
+                    { header: "Product", accessor: "name" },
+                    { header: "Units Sold", accessor: "sales" },
+                    { header: "Revenue ($)", accessor: "revenue" }
+                  ]}
+                  filename="product-performance-report"
+                />
               </div>
             </div>
           </CardContent>
@@ -510,6 +500,17 @@ const Reports = () => {
                     </ResponsiveContainer>
                   )}
                 </CardContent>
+                <div className="px-6 pb-6 flex justify-end">
+                  <PDFExportButton
+                    reportTitle="Monthly Sales Report"
+                    reportData={monthlySalesData}
+                    columns={[
+                      { header: "Month", accessor: "month" },
+                      { header: "Sales ($)", accessor: "sales" }
+                    ]}
+                    filename="monthly-sales-report"
+                  />
+                </div>
               </Card>
             )}
             
@@ -548,6 +549,18 @@ const Reports = () => {
                     </ResponsiveContainer>
                   )}
                 </CardContent>
+                <div className="px-6 pb-6 flex justify-end">
+                  <PDFExportButton
+                    reportTitle="Product Performance Report"
+                    reportData={productPerformanceData}
+                    columns={[
+                      { header: "Product", accessor: "name" },
+                      { header: "Units Sold", accessor: "sales" },
+                      { header: "Revenue ($)", accessor: "revenue" }
+                    ]}
+                    filename="product-performance-report"
+                  />
+                </div>
               </Card>
             )}
             
@@ -586,6 +599,18 @@ const Reports = () => {
                     </ResponsiveContainer>
                   )}
                 </CardContent>
+                <div className="px-6 pb-6 flex justify-end">
+                  <PDFExportButton
+                    reportTitle="Employee Performance Report"
+                    reportData={employeePerformanceData}
+                    columns={[
+                      { header: "Employee", accessor: "name" },
+                      { header: "Sales Count", accessor: "sales" },
+                      { header: "Revenue ($)", accessor: "revenue" }
+                    ]}
+                    filename="employee-performance-report"
+                  />
+                </div>
               </Card>
             )}
           </TabsContent>
@@ -673,6 +698,49 @@ const Reports = () => {
                       ) : null}
                     </TableBody>
                   </Table>
+                </div>
+                <div className="flex justify-end mt-6">
+                  {reportType === "sales" && (
+                    <PDFExportButton
+                      reportTitle="Sales Data Report"
+                      reportData={filteredSales}
+                      columns={[
+                        { header: "Transaction #", accessor: "transno" },
+                        { header: "Customer", accessor: "customer.custname" },
+                        { header: "Date", accessor: "salesdate" },
+                        { header: "Total Amount", accessor: "totalAmount" }
+                      ]}
+                      filename="sales-data-report"
+                    />
+                  )}
+                  {reportType === "products" && (
+                    <PDFExportButton
+                      reportTitle="Product Data Report"
+                      reportData={products.filter(p => p.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                               p.prodcode?.toLowerCase().includes(searchQuery.toLowerCase()))}
+                      columns={[
+                        { header: "Product Code", accessor: "prodcode" },
+                        { header: "Product Name", accessor: "name" },
+                        { header: "Units Sold", accessor: "sales" },
+                        { header: "Revenue", accessor: "revenue" }
+                      ]}
+                      filename="product-data-report"
+                    />
+                  )}
+                  {reportType === "employees" && (
+                    <PDFExportButton
+                      reportTitle="Employee Data Report"
+                      reportData={employees.filter(e => e.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                                e.empno?.toLowerCase().includes(searchQuery.toLowerCase()))}
+                      columns={[
+                        { header: "Employee ID", accessor: "empno" },
+                        { header: "Name", accessor: "name" },
+                        { header: "Sales Count", accessor: "sales" },
+                        { header: "Revenue", accessor: "revenue" }
+                      ]}
+                      filename="employee-data-report"
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>

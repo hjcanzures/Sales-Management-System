@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchBar } from "@/components/reports/SearchBar";
@@ -356,7 +355,18 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
                       </Button>
                       <Button
                         onClick={() => {
-                          updateDateRange();
+                          // Update date range based on the selected year and month
+                          const fromDate = startOfMonth(new Date(parseInt(fromYear), parseInt(fromMonth), 1));
+                          const toDate = endOfMonth(new Date(parseInt(toYear), parseInt(toMonth), 1));
+                          
+                          // Validate that fromDate is before toDate
+                          if (fromDate <= toDate) {
+                            setDateRange({ from: fromDate, to: toDate });
+                          } else {
+                            // If invalid range, swap the values
+                            setDateRange({ from: toDate, to: fromDate });
+                          }
+                          setIsFiltering(true);
                           setMonthSelectionOpen(false);
                         }}
                       >
