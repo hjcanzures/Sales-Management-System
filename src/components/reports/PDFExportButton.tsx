@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { FileChart, Download } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { formatCurrency } from "@/lib/utils";
@@ -9,7 +9,10 @@ import { formatCurrency } from "@/lib/utils";
 interface PDFExportButtonProps {
   reportTitle: string;
   reportData: any[];
-  columns: { header: string; accessor: string | ((data: any) => string) }[];
+  columns: { 
+    header: string; 
+    accessor: string | ((data: any) => string);
+  }[];
   filename: string;
   additionalInfo?: { [key: string]: string };
   variant?: "default" | "outline" | "secondary";
