@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { CalendarIcon, Download } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,8 +15,8 @@ import { useProductsData } from "@/hooks/useProductsData";
 import { useEmployeesData } from "@/hooks/useEmployeesData";
 import { PDFExportButton } from "@/components/reports/PDFExportButton";
 import { Input } from "@/components/ui/input";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { TopProductsTable } from "@/components/reports/TopProductsTable";
+import { SalesDetailModal } from "@/components/reports/SalesDetailModal";
 
 const Reports = () => {
   const { sales, loading: salesLoading } = useSalesData();
@@ -24,11 +24,19 @@ const Reports = () => {
   const { employees, loading: employeesLoading } = useEmployeesData();
 
   const [activeTab, setActiveTab] = useState("sales");
+  const [activeSubTab, setActiveSubTab] = useState({
+    sales: "monthly",
+    products: "performance",
+    employees: "performance"
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState({ 
     from: subMonths(new Date(), 3),
     to: new Date() 
   });
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState(null);
+  const [saleDetailsOpen, setDateDetailsOpen] = useState(false);
   
   // Calculate data for charts from sales data
   const monthlySalesData = useMemo(() => {
@@ -81,83 +89,6 @@ const Reports = () => {
     );
   }, [sales, searchTerm]);
 
-  // Function to handle export of all transactions
-  const handleGenerateAllTransactionsPDF = () => {
-    const doc = new jsPDF();
-    
-    // Add title
-    doc.setFontSize(18);
-    doc.text("All Sales Transactions Report", 14, 22);
-    
-    // Add generation metadata
-    doc.setFontSize(12);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 32);
-    doc.text(`Total Transactions: ${filteredSales.length}`, 14, 42);
-    
-    if (searchTerm) {
-      doc.text(`Filter: "${searchTerm}"`, 14, 52);
-    }
-    
-    const transactionsData = filteredSales.map(sale => [
-      sale.transno,
-      sale.customer?.custname || "N/A",
-      `${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim() || "N/A",
-      sale.salesdate ? format(new Date(sale.salesdate), "PP") : "N/A",
-      `$${(sale.totalAmount || 0).toFixed(2)}`
-    ]);
-    
-    (doc as any).autoTable({
-      startY: searchTerm ? 62 : 52,
-      head: [["Transaction #", "Customer", "Employee", "Date", "Amount"]],
-      body: transactionsData,
-      theme: 'striped',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
-    });
-    
-    // Save the PDF
-    doc.save(`all-transactions-${new Date().toISOString().slice(0,10)}.pdf`);
-  };
-
-  // Function to generate PDF for a single transaction
-  const handleGenerateSalesPDF = (transactionId: string) => {
-    const sale = sales.find(s => s.transno === transactionId);
-    
-    if (!sale) return;
-    
-    const doc = new jsPDF();
-    
-    // Add title and transaction details
-    doc.setFontSize(18);
-    doc.text("Sales Transaction Report", 14, 22);
-    
-    doc.setFontSize(12);
-    doc.text(`Transaction: ${sale.transno}`, 14, 35);
-    doc.text(`Customer: ${sale.customer?.custname || "N/A"}`, 14, 45);
-    doc.text(`Date: ${sale.salesdate ? format(new Date(sale.salesdate), "PP") : "N/A"}`, 14, 55);
-    doc.text(`Total Amount: $${(sale.totalAmount || 0).toFixed(2)}`, 14, 65);
-    
-    // Add sales details if available
-    if (sale.salesDetails && sale.salesDetails.length > 0) {
-      const detailsData = sale.salesDetails.map(detail => [
-        detail.product?.name || detail.prodcode || "",
-        detail.quantity || 0,
-        `$${(detail.unitPrice || 0).toFixed(2)}`,
-        `$${(detail.subtotal || 0).toFixed(2)}`
-      ]);
-      
-      (doc as any).autoTable({
-        startY: 75,
-        head: [["Product", "Quantity", "Unit Price", "Subtotal"]],
-        body: detailsData,
-        theme: 'striped',
-        headStyles: { fillColor: [41, 128, 185], textColor: 255 }
-      });
-    }
-    
-    // Save the PDF
-    doc.save(`transaction-${sale.transno}.pdf`);
-  };
-
   // Top selling products
   const topSellingProducts = useMemo(() => {
     if (!products) return [];
@@ -166,9 +97,27 @@ const Reports = () => {
       .sort((a, b) => (b.sales || 0) - (a.sales || 0))
       .slice(0, 10);
   }, [products]);
+  
+  const handleSaleClick = (sale) => {
+    setSelectedSale(sale);
+    setDateDetailsOpen(true);
+  };
+
+  const handleSubTabChange = (tab, subTab) => {
+    setActiveSubTab(prev => ({
+      ...prev,
+      [tab]: subTab
+    }));
+  };
 
   return (
     <div className="space-y-6">
+      <SalesDetailModal 
+        sale={selectedSale}
+        isOpen={saleDetailsOpen}
+        onClose={() => setDateDetailsOpen(false)}
+      />
+      
       <div>
         <h1 className="text-3xl font-bold">Reports</h1>
         <p className="text-gray-600 mt-2">Analytics and business intelligence</p>
@@ -184,9 +133,25 @@ const Reports = () => {
 
         {/* Sales Reports */}
         <TabsContent value="sales" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Monthly Sales Chart */}
-            <Card className="col-span-1 md:col-span-2">
+          <div className="flex overflow-x-auto gap-2 pb-2">
+            <Button 
+              variant={activeSubTab.sales === "monthly" ? "default" : "outline"} 
+              onClick={() => handleSubTabChange('sales', 'monthly')}
+              className="whitespace-nowrap"
+            >
+              Monthly Sales Chart
+            </Button>
+            <Button 
+              variant={activeSubTab.sales === "transactions" ? "default" : "outline"} 
+              onClick={() => handleSubTabChange('sales', 'transactions')}
+              className="whitespace-nowrap"
+            >
+              Search Transactions
+            </Button>
+          </div>
+          
+          {activeSubTab.sales === "monthly" && (
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Monthly Sales Performance</CardTitle>
@@ -231,31 +196,43 @@ const Reports = () => {
                 )}
               </CardContent>
             </Card>
-
-            {/* Search Transactions */}
-            <Card className="col-span-1 md:col-span-2">
+          )}
+          
+          {activeSubTab.sales === "transactions" && (
+            <Card>
               <CardHeader>
-                <CardTitle>Search Sales Transactions</CardTitle>
-                <CardDescription>Find and export specific transactions</CardDescription>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Search Sales Transactions</CardTitle>
+                    <CardDescription>Find and export specific transactions</CardDescription>
+                  </div>
+                  <PDFExportButton
+                    reportTitle="All Sales Transactions Report"
+                    reportData={filteredSales}
+                    columns={[
+                      { header: "Transaction #", accessor: "transno" },
+                      { header: "Customer", accessor: (sale) => sale.customer?.custname || "N/A" },
+                      { header: "Employee", accessor: (sale) => `${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim() || "N/A" },
+                      { header: "Date", accessor: (sale) => sale.salesdate ? format(new Date(sale.salesdate), "PP") : "N/A" },
+                      { header: "Amount", accessor: "totalAmount" }
+                    ]}
+                    filename="all-sales-transactions"
+                    additionalInfo={{
+                      "Filter": searchTerm ? `Search: "${searchTerm}"` : "None",
+                      "Total Transactions": filteredSales.length.toString()
+                    }}
+                    variant="default"
+                  />
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
-                  <div className="relative w-full md:max-w-md">
-                    <Input
-                      placeholder="Search by transaction #, customer, or employee..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  
-                  <Button 
-                    variant="default" 
-                    onClick={handleGenerateAllTransactionsPDF}
-                    disabled={filteredSales.length === 0}
-                  >
-                    <Download className="mr-2 h-4 w-4" /> Export All as PDF
-                  </Button>
+                <div className="relative w-full md:max-w-md">
+                  <Input
+                    placeholder="Search by transaction #, customer, or employee..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full"
+                  />
                 </div>
                 
                 <div className="border rounded-md">
@@ -264,6 +241,7 @@ const Reports = () => {
                       <TableRow>
                         <TableHead>Transaction #</TableHead>
                         <TableHead>Customer</TableHead>
+                        <TableHead>Employee</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Actions</TableHead>
@@ -271,25 +249,29 @@ const Reports = () => {
                     </TableHeader>
                     <TableBody>
                       {filteredSales.slice(0, 10).map((sale) => (
-                        <TableRow key={sale.transno}>
+                        <TableRow key={sale.transno} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSaleClick(sale)}>
                           <TableCell>{sale.transno}</TableCell>
-                          <TableCell>{sale.customer?.custname}</TableCell>
-                          <TableCell>{sale.salesdate ? format(new Date(sale.salesdate), "PP") : ""}</TableCell>
-                          <TableCell>${(sale.totalAmount || 0).toFixed(2)}</TableCell>
+                          <TableCell>{sale.customer?.custname || "N/A"}</TableCell>
+                          <TableCell>{`${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim() || "N/A"}</TableCell>
+                          <TableCell>{sale.salesdate ? format(new Date(sale.salesdate), "PP") : "N/A"}</TableCell>
+                          <TableCell>${(sale.totalAmount || 0).toLocaleString()}</TableCell>
                           <TableCell>
                             <Button 
                               variant="outline" 
-                              size="sm" 
-                              onClick={() => handleGenerateSalesPDF(sale.transno || "")}
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSaleClick(sale);
+                              }}
                             >
-                              <Download className="h-4 w-4 mr-1" /> PDF
+                              View Details
                             </Button>
                           </TableCell>
                         </TableRow>
                       ))}
                       {filteredSales.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-4">
+                          <TableCell colSpan={6} className="text-center py-4">
                             {salesLoading ? "Loading sales data..." : `No sales found matching '${searchTerm}'`}
                           </TableCell>
                         </TableRow>
@@ -299,14 +281,30 @@ const Reports = () => {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          )}
         </TabsContent>
 
         {/* Product Reports */}
         <TabsContent value="products" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Product Performance Chart */}
-            <Card className="col-span-1 md:col-span-2">
+          <div className="flex overflow-x-auto gap-2 pb-2">
+            <Button 
+              variant={activeSubTab.products === "performance" ? "default" : "outline"} 
+              onClick={() => handleSubTabChange('products', 'performance')}
+              className="whitespace-nowrap"
+            >
+              Product Performance
+            </Button>
+            <Button 
+              variant={activeSubTab.products === "top" ? "default" : "outline"} 
+              onClick={() => handleSubTabChange('products', 'top')}
+              className="whitespace-nowrap"
+            >
+              Top Products
+            </Button>
+          </div>
+          
+          {activeSubTab.products === "performance" && (
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Product Performance</CardTitle>
@@ -350,60 +348,22 @@ const Reports = () => {
                 )}
               </CardContent>
             </Card>
-
-            {/* Top Selling Products */}
-            <Card className="col-span-1 md:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Top Selling Products</CardTitle>
-                  <CardDescription>Products with highest sales volume</CardDescription>
-                </div>
-                <PDFExportButton
-                  reportTitle="Top Selling Products Report"
-                  reportData={topSellingProducts}
-                  columns={[
-                    { header: "Product Code", accessor: "prodcode" },
-                    { header: "Product Name", accessor: "name" },
-                    { header: "Units Sold", accessor: "sales" },
-                    { header: "Revenue ($)", accessor: "revenue" }
-                  ]}
-                  filename="top-selling-products"
-                  variant="default"
-                />
+          )}
+          
+          {activeSubTab.products === "top" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Selling Products</CardTitle>
+                <CardDescription>Products with highest sales volume</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="border rounded-md">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product Code</TableHead>
-                        <TableHead>Product Name</TableHead>
-                        <TableHead className="text-right">Units Sold</TableHead>
-                        <TableHead className="text-right">Revenue</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {topSellingProducts.map((product) => (
-                        <TableRow key={product.prodcode}>
-                          <TableCell>{product.prodcode}</TableCell>
-                          <TableCell>{product.name || product.description}</TableCell>
-                          <TableCell className="text-right">{product.sales || 0}</TableCell>
-                          <TableCell className="text-right">${(product.revenue || 0).toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
-                      {topSellingProducts.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-4">
-                            {productsLoading ? "Loading product data..." : "No product data available"}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                <TopProductsTable 
+                  products={products || []} 
+                  salesData={sales} 
+                />
               </CardContent>
             </Card>
-          </div>
+          )}
         </TabsContent>
 
         {/* Employee Reports */}

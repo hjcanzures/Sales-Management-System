@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SearchBar } from "@/components/reports/SearchBar";
@@ -22,8 +21,6 @@ import {
 import { PDFExportButton } from "./PDFExportButton";
 import { ProductDetailsModal } from "./ProductDetailsModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 
 interface TopProductsTableProps {
   products: Product[];
