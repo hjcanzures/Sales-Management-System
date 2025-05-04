@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -9,7 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -441,11 +440,11 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
             ]}
             columns={[
               { header: "Data Type", accessor: "type" },
-              { header: "Month/ID", accessor: data => data.month || data.id || "" },
-              { header: "Sales/Date", accessor: data => data.sales?.toString() || data.date || "" },
-              { header: "Revenue/Customer", accessor: data => (typeof data.revenue === 'number' ? `$${data.revenue.toFixed(2)}` : data.customer || "") },
-              { header: "Quantity", accessor: data => data.quantity?.toString() || "" },
-              { header: "Amount", accessor: data => (typeof data.amount === 'number' ? `$${data.amount.toFixed(2)}` : "") }
+              { header: "Month/ID", accessor: "month" },
+              { header: "Sales/Date", accessor: "sales" },
+              { header: "Revenue/Customer", accessor: "revenue" },
+              { header: "Quantity", accessor: "quantity" },
+              { header: "Amount", accessor: "amount" }
             ]}
             filename={`product-report-${product.prodcode}`}
             additionalInfo={{

@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -5,7 +6,7 @@ import { BarChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Download } from "lucide-react"; // Added Download import
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,7 +20,7 @@ import { useEmployeesData } from "@/hooks/useEmployeesData";
 import { SearchBar } from "@/components/reports/SearchBar";
 import { TopProductsTable } from "@/components/reports/TopProductsTable";
 import { PDFExportButton } from "@/components/reports/PDFExportButton";
-import jsPDF from "jspdf";
+import jsPDF from "jspdf"; // Added jsPDF import
 import "jspdf-autotable";
 
 const Reports = () => {
