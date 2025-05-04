@@ -9,10 +9,7 @@ import { formatCurrency } from "@/lib/utils";
 interface PDFExportButtonProps {
   reportTitle: string;
   reportData: any[];
-  columns: { 
-    header: string; 
-    accessor: string | ((data: any) => string);
-  }[];
+  columns: { header: string; accessor: string | ((data: any) => string) }[];
   filename: string;
   additionalInfo?: { [key: string]: string };
   variant?: "default" | "outline" | "secondary";

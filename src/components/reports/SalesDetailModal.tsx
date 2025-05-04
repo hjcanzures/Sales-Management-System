@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, FileText } from "lucide-react";
+import { X, FileText } from "lucide-react";
 import { Sale, SaleDetail } from "@/types";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -38,12 +38,12 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
     doc.text(`Transaction ID: ${sale.transno || "N/A"}`, 14, 35);
     doc.text(`Customer: ${sale.customer?.custname || "N/A"}`, 14, 45);
     doc.text(`Employee: ${sale.employee?.firstname || ""} ${sale.employee?.lastname || ""}`.trim(), 14, 55);
-    doc.text(`Date: ${sale.salesdate ? new Date(sale.salesdate).toLocaleDateString() : "N/A"}`, 14, 65);
+    doc.text(`Date: ${sale.salesdate || "N/A"}`, 14, 65);
     doc.text(`Total Amount: $${(sale.totalAmount || 0).toFixed(2)}`, 14, 75);
     
     // Add sales details if available
-    const detailsData = (sale.salesDetails || []).map(detail => [
-      detail.product?.description || detail.prodcode || "N/A",
+    const detailsData = (sale.saleDetails || []).map(detail => [
+      detail.product?.name || detail.prodcode || "N/A",
       detail.quantity || 0,
       `$${(detail.unitPrice || 0).toFixed(2)}`,
       `$${(detail.subtotal || 0).toFixed(2)}`
@@ -61,10 +61,11 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="flex items-center justify-between">
           <DialogTitle>Sale Details</DialogTitle>
+          {/* Only one close button here */}
         </DialogHeader>
         
         {sale && (
@@ -76,7 +77,7 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
               </div>
               <div>
                 <h4 className="text-sm font-medium text-gray-500">Date</h4>
-                <p className="text-lg">{sale.salesdate ? new Date(sale.salesdate).toLocaleDateString() : "N/A"}</p>
+                <p className="text-lg">{sale.salesdate || "N/A"}</p>
               </div>
               <div>
                 <h4 className="text-sm font-medium text-gray-500">Customer</h4>
@@ -109,15 +110,15 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {(sale.salesDetails || []).map((detail, index) => (
+                    {(sale.saleDetails || []).map((detail, index) => (
                       <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{detail.product?.description || detail.prodcode || "N/A"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{detail.product?.name || detail.prodcode || "N/A"}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{detail.quantity}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">${(detail.unitPrice || 0).toFixed(2)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">${(detail.subtotal || 0).toFixed(2)}</td>
                       </tr>
                     ))}
-                    {(!sale.salesDetails || sale.salesDetails.length === 0) && (
+                    {(!sale.saleDetails || sale.saleDetails.length === 0) && (
                       <tr>
                         <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">No items found</td>
                       </tr>
@@ -140,7 +141,7 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
             Close
           </Button>
           <Button variant="default" onClick={generatePDF} disabled={!sale}>
-            <Download className="h-4 w-4 mr-2" /> Download PDF
+            <FileText className="h-4 w-4 mr-2" /> Export PDF
           </Button>
         </DialogFooter>
       </DialogContent>
