@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { FileChart, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { formatCurrency } from "@/lib/utils";
