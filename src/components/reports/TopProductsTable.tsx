@@ -21,6 +21,8 @@ import {
 import { PDFExportButton } from "./PDFExportButton";
 import { ProductDetailsModal } from "./ProductDetailsModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 interface TopProductsTableProps {
   products: Product[];
