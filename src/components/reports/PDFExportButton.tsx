@@ -12,7 +12,9 @@ interface PDFExportButtonProps {
   data: (string | number)[][];
   orientation?: "portrait" | "landscape";
   action?: "download" | "print";
-  variant?: "outline" | "default";
+  variant?: "outline" | "default" | "ghost";
+  size?: "sm" | "default";
+  className?: string;
 }
 
 export const PDFExportButton = ({
@@ -23,6 +25,8 @@ export const PDFExportButton = ({
   orientation = "portrait",
   action = "download",
   variant = "outline",
+  size = "default",
+  className,
 }: PDFExportButtonProps) => {
   const { toast } = useToast();
   
@@ -98,9 +102,9 @@ export const PDFExportButton = ({
   return (
     <Button 
       variant={variant} 
-      size="sm" 
+      size={size} 
       onClick={generatePDF} 
-      className="flex items-center gap-1.5"
+      className={className}
     >
       {action === "download" ? (
         <>
