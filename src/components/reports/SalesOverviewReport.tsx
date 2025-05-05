@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { useSalesData } from "@/hooks/useSalesData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, LineChart, PieChart } from "@/components/ui/chart";
+import { BarChart, LineChart, PieChart } from "@/components/ui/charts";
 import { formatCurrency } from "@/lib/utils";
 import { PDFExportButton } from "@/components/reports/PDFExportButton";
 
