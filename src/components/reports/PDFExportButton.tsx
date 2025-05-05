@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { formatCurrency } from "@/lib/utils";
@@ -9,7 +9,10 @@ import { formatCurrency } from "@/lib/utils";
 interface PDFExportButtonProps {
   reportTitle: string;
   reportData: any[];
-  columns: { header: string; accessor: string }[];
+  columns: { 
+    header: string; 
+    accessor: string | ((data: any) => string);
+  }[];
   filename: string;
   additionalInfo?: { [key: string]: string };
   variant?: "default" | "outline" | "secondary";
@@ -48,11 +51,16 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
       columns.map(column => {
         let value;
         
-        // Handle nested properties with dot notation
-        if (column.accessor.includes('.')) {
-          value = column.accessor.split('.').reduce((obj, key) => obj && obj[key], item);
-        } else {
-          value = item[column.accessor];
+        // Handle accessor function or string
+        if (typeof column.accessor === 'function') {
+          value = column.accessor(item);
+        } else if (typeof column.accessor === 'string') {
+          // Handle nested properties with dot notation
+          if (column.accessor.includes('.')) {
+            value = column.accessor.split('.').reduce((obj, key) => obj && obj[key], item);
+          } else {
+            value = item[column.accessor];
+          }
         }
         
         // Format numbers as currency if they appear to be monetary values
