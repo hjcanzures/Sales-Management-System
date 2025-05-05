@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TopProductsTable } from "@/components/reports/TopProductsTable";
 import { TopEmployeesTable } from "@/components/reports/TopEmployeesTable";
 import { SalesOverviewReport } from "@/components/reports/SalesOverviewReport";
+import { SalesReportsTable } from "@/components/reports/SalesReportsTable";
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -25,10 +26,11 @@ const Reports = () => {
       </div>
 
       <Tabs defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
-        <TabsList className="grid w-full grid-cols-3 md:w-auto">
+        <TabsList className="grid w-full grid-cols-4 md:w-auto">
           <TabsTrigger value="overview">Sales Overview</TabsTrigger>
           <TabsTrigger value="products">Top Products</TabsTrigger>
           <TabsTrigger value="employees">Top Employees</TabsTrigger>
+          <TabsTrigger value="sales">Sales Reports</TabsTrigger>
         </TabsList>
         <div className="mt-4">
           <TabsContent value="overview" className="mt-0">
@@ -67,6 +69,19 @@ const Reports = () => {
               </CardHeader>
               <CardContent>
                 <TopEmployeesTable />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="sales" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Sales Reports</CardTitle>
+                <CardDescription>
+                  View detailed transaction information with downloadable reports
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SalesReportsTable />
               </CardContent>
             </Card>
           </TabsContent>
