@@ -112,6 +112,9 @@ export const SalesOverviewReport = () => {
           headers={headers}
           data={data}
           action="download"
+          variant="outline"
+          size="default"
+          className="flex items-center gap-1.5"
         />
         <PDFExportButton
           title="Sales Overview Report"
@@ -120,6 +123,8 @@ export const SalesOverviewReport = () => {
           data={data}
           action="print"
           variant="default"
+          size="default"
+          className="flex items-center gap-1.5"
         />
       </div>
 
