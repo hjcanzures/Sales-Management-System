@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X, FileText } from "lucide-react";
+import { X, FileText, Download, Printer } from "lucide-react";
 import { Sale, SaleDetail } from "@/types";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -25,7 +25,7 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const generatePDF = () => {
+  const generatePDF = (shouldPrint: boolean = false) => {
     if (!sale) return;
     
     const doc = new jsPDF();
@@ -57,7 +57,14 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
       headStyles: { fillColor: [41, 128, 185], textColor: 255 }
     });
     
-    doc.save(`sale-${sale.transno}.pdf`);
+    if (shouldPrint) {
+      // Open PDF in a new window and trigger print
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
+    } else {
+      // Save the PDF with automatic download
+      doc.save(`sale-${sale.transno}.pdf`);
+    }
   };
   
   return (
@@ -140,9 +147,14 @@ export const SalesDetailModal: React.FC<SalesDetailModalProps> = ({
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button variant="default" onClick={generatePDF} disabled={!sale}>
-            <FileText className="h-4 w-4 mr-2" /> Export PDF
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="default" onClick={() => generatePDF(false)} disabled={!sale}>
+              <Download className="h-4 w-4 mr-2" /> Download PDF
+            </Button>
+            <Button variant="outline" onClick={() => generatePDF(true)} disabled={!sale}>
+              <Printer className="h-4 w-4 mr-2" /> Print PDF
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

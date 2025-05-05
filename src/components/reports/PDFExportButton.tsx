@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { formatCurrency } from "@/lib/utils";
@@ -13,6 +13,7 @@ interface PDFExportButtonProps {
   filename: string;
   additionalInfo?: { [key: string]: string };
   variant?: "default" | "outline" | "secondary";
+  showPrintButton?: boolean;
 }
 
 export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
@@ -22,8 +23,9 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
   filename,
   additionalInfo = {},
   variant = "outline",
+  showPrintButton = true,
 }) => {
-  const exportToPDF = () => {
+  const generatePDF = (shouldPrint: boolean = false) => {
     const doc = new jsPDF();
     
     // Add title
@@ -82,13 +84,27 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
       headStyles: { fillColor: [41, 128, 185], textColor: 255 }
     });
     
-    // Save the PDF
-    doc.save(`${filename}-${new Date().toISOString().slice(0,10)}.pdf`);
+    if (shouldPrint) {
+      // Open PDF in a new window and trigger print
+      doc.autoPrint();
+      window.open(doc.output('bloburl'), '_blank');
+    } else {
+      // Save the PDF with automatic download
+      doc.save(`${filename}-${new Date().toISOString().slice(0,10)}.pdf`);
+    }
   };
   
   return (
-    <Button variant={variant} onClick={exportToPDF}>
-      <Download className="mr-2 h-4 w-4" /> Download PDF
-    </Button>
+    <div className="flex gap-2">
+      <Button variant={variant} onClick={() => generatePDF(false)}>
+        <Download className="mr-2 h-4 w-4" /> Download PDF
+      </Button>
+      
+      {showPrintButton && (
+        <Button variant="outline" onClick={() => generatePDF(true)}>
+          <Printer className="mr-2 h-4 w-4" /> Print PDF
+        </Button>
+      )}
+    </div>
   );
 };

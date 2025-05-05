@@ -21,6 +21,8 @@ import {
 import { PDFExportButton } from "./PDFExportButton";
 import { ProductDetailsModal } from "./ProductDetailsModal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 interface TopProductsTableProps {
   products: Product[];
@@ -177,11 +179,44 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
       headStyles: { fillColor: [41, 128, 185], textColor: 255 }
     });
     
-    // Save the PDF
+    // Save the PDF with automatic download
     const filename = isFiltering && dateRange.from && dateRange.to 
       ? `top-products-${format(dateRange.from, "yyyy-MM-dd")}-to-${format(dateRange.to, "yyyy-MM-dd")}.pdf` 
       : "top-products-report.pdf";
     doc.save(filename);
+  };
+
+  const handlePrintPDF = () => {
+    // Create a PDF for printing
+    const doc = new jsPDF();
+    doc.text("Top Selling Products Report", 14, 22);
+    
+    // Add date range to the PDF if filtering is active
+    if (isFiltering && dateRange.from && dateRange.to) {
+      doc.text(`Date Range: ${format(dateRange.from, "PP")} - ${format(dateRange.to, "PP")}`, 14, 32);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 42);
+    } else {
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 32);
+    }
+    
+    // Add table with product data
+    (doc as any).autoTable({
+      startY: isFiltering && dateRange.from && dateRange.to ? 50 : 40,
+      head: [["Rank", "Product Code", "Product", "Units Sold", "Revenue"]],
+      body: filteredProducts.map(product => [
+        product.rank,
+        product.prodcode,
+        product.name,
+        product.sales,
+        `$${(product.revenue || 0).toLocaleString()}`
+      ]),
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185], textColor: 255 }
+    });
+    
+    // Open in new window and trigger print dialog
+    doc.autoPrint();
+    window.open(doc.output('bloburl'), '_blank');
   };
 
   const handleQuickDateRange = (range: string) => {
@@ -381,6 +416,7 @@ export function TopProductsTable({ products, onGeneratePDF, salesData }: TopProd
                 "Filter": searchTerm ? `Search: "${searchTerm}"` : "None"
               }}
               variant="default"
+              showPrintButton={true}
             />
           </div>
           
