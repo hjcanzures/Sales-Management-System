@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { User, UsersIcon, Shield, ShieldCheck, ShieldX } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User as UserType } from "@/types";
 
@@ -83,7 +83,8 @@ const UserManagement = () => {
     
     // Set up subscription to user changes (sign ups)
     const authSubscription = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'USER_DELETED') {
+      // Fix the error: Change the comparison to check for valid auth events
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'SIGNED_OUT') {
         fetchUsers();
       }
     });
