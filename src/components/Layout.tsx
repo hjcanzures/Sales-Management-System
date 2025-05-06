@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,8 +38,8 @@ const Layout = ({ children }: LayoutProps) => {
     navigate("/");
   };
   
-  // Get display name from user object
-  const displayName = user?.name || user?.username || "User";
+  // Get display name from user object - fixed to use user metadata
+  const displayName = user?.name || user?.email?.split('@')[0] || "User";
   
   // Base navigation items for all users
   const baseNavItems = [

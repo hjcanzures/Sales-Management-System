@@ -9,13 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { User, UsersIcon, Shield, ShieldCheck, ShieldX } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-
-// Mock users to manage
-const mockUsers = [
-  { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", status: "active" },
-  { id: "2", name: "Regular User", email: "user@example.com", role: "user", status: "active" },
-  { id: "3", name: "Blocked User", email: "blocked@example.com", role: "user", status: "blocked" },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { User as UserType } from "@/types";
 
 const UserManagement = () => {
   const { isAdmin, toggleUserStatus, toggleUserRole } = useAuth();
@@ -24,15 +19,84 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState("all");
   const [sortField, setSortField] = useState("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<typeof mockUsers[0] | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch users from Supabase
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    try {
+      // For Supabase auth users
+      const { data: authUsers, error } = await supabase.auth.admin.listUsers();
+      
+      if (error) {
+        console.error("Error fetching users:", error);
+        // Fall back to mock users if we can't access Supabase auth
+        const mockUsers = [
+          { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", status: "active" },
+          { id: "2", name: "Regular User", email: "user@example.com", role: "user", status: "active" },
+          { id: "3", name: "Blocked User", email: "blocked@example.com", role: "user", status: "blocked" },
+        ];
+        setUsers(mockUsers);
+        toast({
+          title: "Using mock data",
+          description: "Admin API not accessible, using sample data instead.",
+          variant: "default",
+        });
+      } else {
+        // Transform Supabase users to our User type
+        const formattedUsers = authUsers.users.map(user => ({
+          id: user.id,
+          name: user.user_metadata?.name || user.email?.split('@')[0] || "User",
+          email: user.email || "",
+          role: user.user_metadata?.role || "user",
+          status: user.banned ? "blocked" : "active"
+        }));
+        setUsers(formattedUsers);
+      }
+    } catch (error: any) {
+      console.error("Error fetching users:", error);
+      
+      // Fallback to mock data
+      const mockUsers = [
+        { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", status: "active" },
+        { id: "2", name: "Regular User", email: "user@example.com", role: "user", status: "active" },
+        { id: "3", name: "Blocked User", email: "blocked@example.com", role: "user", status: "blocked" },
+      ];
+      setUsers(mockUsers);
+      toast({
+        title: "Using mock data",
+        description: "Unable to fetch users: " + error.message,
+        variant: "default",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+    
+    // Set up subscription to user changes (sign ups)
+    const authSubscription = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'USER_DELETED') {
+        fetchUsers();
+      }
+    });
+    
+    return () => {
+      authSubscription.data.subscription.unsubscribe();
+    };
+  }, []);
 
   // Filter users based on search query and role filter
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          user.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          user.email?.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -62,15 +126,6 @@ const UserManagement = () => {
       setSortDirection("asc");
     }
   };
-
-  // Handle filtering as user types
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Any additional filtering logic can go here
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   // Handle user status toggle with debounce to prevent freezing
   const handleToggleStatus = (userId: string) => {
@@ -106,7 +161,7 @@ const UserManagement = () => {
   };
 
   // Handle opening the edit dialog
-  const handleOpenEditDialog = (user: typeof mockUsers[0]) => {
+  const handleOpenEditDialog = (user: UserType) => {
     setSelectedUser(user);
     setDialogOpen(true);
   };
@@ -140,6 +195,9 @@ const UserManagement = () => {
       // Close dialog and clear processing state
       setDialogOpen(false);
       setIsProcessing(null);
+      
+      // Refresh the users list
+      fetchUsers();
     }, 500);
   };
 
@@ -193,8 +251,8 @@ const UserManagement = () => {
                   />
                 </div>
               </div>
-              <Button>
-                <User className="h-4 w-4 mr-2" /> Add New User
+              <Button onClick={fetchUsers}>
+                <User className="h-4 w-4 mr-2" /> Refresh Users
               </Button>
             </div>
             
@@ -230,56 +288,63 @@ const UserManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${
-                            user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {user.role === 'admin' ? <ShieldCheck className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
-                            {user.role}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {user.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleOpenEditDialog(user)}
-                          >
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className={user.status === 'active' ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
-                            onClick={() => handleToggleStatus(user.id)}
-                            disabled={isProcessing === user.id}
-                          >
-                            {isProcessing === user.id ? (
-                              "Processing..."
-                            ) : user.status === 'active' ? (
-                              'Block'
-                            ) : (
-                              'Unblock'
-                            )}
-                          </Button>
-                        </div>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        Loading users...
                       </TableCell>
                     </TableRow>
-                  ))}
-                  {sortedUsers.length === 0 && (
+                  ) : sortedUsers.length > 0 ? (
+                    sortedUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${
+                              user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {user.role === 'admin' ? <ShieldCheck className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
+                              {user.role}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {user.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleOpenEditDialog(user)}
+                            >
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className={user.status === 'active' ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+                              onClick={() => handleToggleStatus(user.id)}
+                              disabled={isProcessing === user.id}
+                            >
+                              {isProcessing === user.id ? (
+                                "Processing..."
+                              ) : user.status === 'active' ? (
+                                'Block'
+                              ) : (
+                                'Unblock'
+                              )}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-4">
                         {searchQuery ? `No users found matching "${searchQuery}"` : "No users found"}
