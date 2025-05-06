@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, UsersIcon } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { User, UsersIcon, Shield, ShieldCheck, ShieldX } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 // Mock users to manage
 const mockUsers = [
@@ -17,7 +18,7 @@ const mockUsers = [
 ];
 
 const UserManagement = () => {
-  const { isAdmin, toggleUserStatus } = useAuth();
+  const { isAdmin, toggleUserStatus, toggleUserRole } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -25,6 +26,8 @@ const UserManagement = () => {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [users, setUsers] = useState(mockUsers);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<typeof mockUsers[0] | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Filter users based on search query and role filter
   const filteredUsers = users.filter(user => {
@@ -98,6 +101,44 @@ const UserManagement = () => {
       toggleUserStatus(userId);
       
       // Clear processing state
+      setIsProcessing(null);
+    }, 500);
+  };
+
+  // Handle opening the edit dialog
+  const handleOpenEditDialog = (user: typeof mockUsers[0]) => {
+    setSelectedUser(user);
+    setDialogOpen(true);
+  };
+
+  // Handle role toggle
+  const handleToggleRole = (userId: string) => {
+    setIsProcessing(userId);
+    
+    // Simulate API call with slight delay
+    setTimeout(() => {
+      // Update the user role in our local state
+      setUsers(prev => 
+        prev.map(user => {
+          if (user.id === userId) {
+            const newRole = user.role === 'admin' ? 'user' : 'admin';
+            
+            toast({
+              title: `User role updated`,
+              description: `${user.name}'s role has been changed to ${newRole}.`,
+            });
+            
+            return { ...user, role: newRole };
+          }
+          return user;
+        })
+      );
+      
+      // Call the auth context method
+      toggleUserRole(userId);
+      
+      // Close dialog and clear processing state
+      setDialogOpen(false);
       setIsProcessing(null);
     }, 500);
   };
@@ -194,11 +235,14 @@ const UserManagement = () => {
                       <TableCell>{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {user.role}
-                        </span>
+                        <div className="flex items-center">
+                          <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${
+                            user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {user.role === 'admin' ? <ShieldCheck className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
+                            {user.role}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -209,7 +253,13 @@ const UserManagement = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button variant="ghost" size="sm">Edit</Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleOpenEditDialog(user)}
+                          >
+                            Edit
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -242,6 +292,88 @@ const UserManagement = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update role and permissions for this user
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <h3 className="font-medium">User Information</h3>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="font-medium text-right">Name:</div>
+                  <div className="col-span-3">{selectedUser.name}</div>
+                  
+                  <div className="font-medium text-right">Email:</div>
+                  <div className="col-span-3">{selectedUser.email}</div>
+                  
+                  <div className="font-medium text-right">Status:</div>
+                  <div className="col-span-3">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      selectedUser.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {selectedUser.status}
+                    </span>
+                  </div>
+                  
+                  <div className="font-medium text-right">Role:</div>
+                  <div className="col-span-3">
+                    <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${
+                      selectedUser.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {selectedUser.role === 'admin' ? <ShieldCheck className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
+                      {selectedUser.role}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="font-medium">Role Management</h3>
+                <p className="text-sm text-gray-500">
+                  {selectedUser.role === 'admin' 
+                    ? "Demote this user to a regular user. This will remove administrative privileges." 
+                    : "Promote this user to an admin. This will grant full administrative privileges."}
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            {selectedUser && (
+              <Button 
+                onClick={() => handleToggleRole(selectedUser.id)}
+                variant={selectedUser.role === 'admin' ? "destructive" : "default"}
+                disabled={isProcessing === selectedUser.id}
+              >
+                {isProcessing === selectedUser.id ? (
+                  "Processing..."
+                ) : selectedUser.role === 'admin' ? (
+                  <>
+                    <ShieldX className="h-4 w-4 mr-2" />
+                    Demote to User
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    Promote to Admin
+                  </>
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

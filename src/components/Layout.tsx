@@ -39,6 +39,9 @@ const Layout = ({ children }: LayoutProps) => {
     navigate("/");
   };
   
+  // Get display name from user object
+  const displayName = user?.name || user?.username || "User";
+  
   // Base navigation items for all users
   const baseNavItems = [
     {
@@ -120,12 +123,12 @@ const Layout = ({ children }: LayoutProps) => {
             <div className="flex items-center">
               <Avatar>
                 <AvatarFallback className="bg-sales-600 text-white">
-                  {user?.name?.charAt(0) || "U"}
+                  {displayName.charAt(0)}
                 </AvatarFallback>
               </Avatar>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700">{user?.name}</p>
-                <p className="text-xs font-medium text-gray-500">{user?.role}</p>
+                <p className="text-sm font-medium text-gray-700">{displayName}</p>
+                <p className="text-xs font-medium text-gray-500">{user?.role || "user"}</p>
               </div>
               <Button 
                 variant="ghost" 
@@ -169,12 +172,12 @@ const Layout = ({ children }: LayoutProps) => {
                 <div className="flex items-center px-3">
                   <Avatar>
                     <AvatarFallback className="bg-sales-600 text-white">
-                      {user?.name?.charAt(0) || "U"}
+                      {displayName.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-700">{user?.name}</p>
-                    <p className="text-xs font-medium text-gray-500">{user?.role}</p>
+                    <p className="text-sm font-medium text-gray-700">{displayName}</p>
+                    <p className="text-xs font-medium text-gray-500">{user?.role || "user"}</p>
                   </div>
                   <Button 
                     variant="ghost" 

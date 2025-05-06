@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
 import { users } from "@/lib/mockData";
@@ -13,6 +12,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   toggleUserStatus: (userId: string) => void;
+  toggleUserRole: (userId: string) => void;
 }
 
 // Enhanced user mock data with roles and status
@@ -223,6 +223,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  // Function to toggle user role (admin/user)
+  const toggleUserRole = async (userId: string) => {
+    // For mock users
+    const mockUser = enhancedUsers.find(u => u.id === userId);
+    if (mockUser) {
+      const newRole = mockUser.role === "admin" ? "user" : "admin";
+      
+      // Update the mock user array
+      for (let i = 0; i < enhancedUsers.length; i++) {
+        if (enhancedUsers[i].id === userId) {
+          enhancedUsers[i].role = newRole;
+          break;
+        }
+      }
+      
+      // If the current user is being toggled, update their role
+      if (user && user.id === userId) {
+        const updatedUser = { ...user, role: newRole };
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+      
+      toast({
+        title: "User role updated",
+        description: `User has been ${newRole === "admin" ? "promoted to admin" : "demoted to regular user"}`,
+      });
+      
+      return;
+    }
+    
+    // For Supabase users
+    try {
+      if (user && user.id === userId) {
+        // Get current user metadata
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (!currentUser) throw new Error("User not found");
+        
+        const currentRole = currentUser.user_metadata.role || "user";
+        const newRole = currentRole === "admin" ? "user" : "admin";
+        
+        // Update user metadata
+        const { error } = await supabase.auth.updateUser({
+          data: { 
+            role: newRole 
+          }
+        });
+        
+        if (error) throw error;
+        
+        // Update local state
+        const updatedUser = { ...user, role: newRole };
+        setUser(updatedUser);
+        
+        toast({
+          title: "Your role updated",
+          description: `You are now a ${newRole}`,
+        });
+      } else {
+        // For simplicity in this demo, we'll just show a toast that this would update another user's role
+        toast({
+          title: "Role change simulated",
+          description: "In a production app, this would update the user's role in the database",
+        });
+      }
+    } catch (error: any) {
+      console.error("Role update error:", error);
+      toast({
+        title: "Role update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -231,6 +305,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAuthenticated: !!user,
     isAdmin: user?.role === "admin",
     toggleUserStatus,
+    toggleUserRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
