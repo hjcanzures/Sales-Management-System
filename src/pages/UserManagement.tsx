@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -5,69 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { User, UsersIcon, Shield, ShieldCheck, ShieldX } from "lucide-react";
+import { User, UsersIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { User as UserType } from "@/types";
-import { fetchAllUsers } from "@/services/userManagement";
+
+// Mock users to manage
+const mockUsers = [
+  { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", status: "active" },
+  { id: "2", name: "Regular User", email: "user@example.com", role: "user", status: "active" },
+  { id: "3", name: "Blocked User", email: "blocked@example.com", role: "user", status: "blocked" },
+];
 
 const UserManagement = () => {
-  const { isAdmin, toggleUserStatus, toggleUserRole } = useAuth();
+  const { isAdmin, toggleUserStatus } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [sortField, setSortField] = useState("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [users, setUsers] = useState<UserType[]>([]);
+  const [users, setUsers] = useState(mockUsers);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch users from our app_users table
-  const loadUsers = async () => {
-    setIsLoading(true);
-    try {
-      const fetchedUsers = await fetchAllUsers();
-      setUsers(fetchedUsers);
-    } catch (error: any) {
-      console.error("Error fetching users:", error);
-      toast({
-        title: "Error fetching users",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch users on component mount
-  useEffect(() => {
-    loadUsers();
-    
-    // Set up subscription to user changes
-    const channel = supabase.channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'app_users' },
-        () => {
-          // Refresh users list when any changes occur to the app_users table
-          loadUsers();
-        }
-      )
-      .subscribe();
-    
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   // Filter users based on search query and role filter
   const filteredUsers = users.filter(user => {
-    const matchesSearch = (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          user.email?.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     return matchesSearch && matchesRole;
   });
@@ -98,56 +60,44 @@ const UserManagement = () => {
     }
   };
 
-  // Handle user status toggle
+  // Handle filtering as user types
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Any additional filtering logic can go here
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Handle user status toggle with debounce to prevent freezing
   const handleToggleStatus = (userId: string) => {
     // Set processing state to show loading indicator
     setIsProcessing(userId);
     
-    // Update user status
-    toggleUserStatus(userId);
-    
-    // Update the user status in our local state
-    setUsers(prev => 
-      prev.map(user => {
-        if (user.id === userId) {
-          return { ...user, status: user.status === 'active' ? 'blocked' : 'active' };
-        }
-        return user;
-      })
-    );
-    
-    // Clear processing state
+    // Simulate API call with slight delay
     setTimeout(() => {
-      setIsProcessing(null);
-    }, 500);
-  };
-
-  // Handle opening the edit dialog
-  const handleOpenEditDialog = (user: UserType) => {
-    setSelectedUser(user);
-    setDialogOpen(true);
-  };
-
-  // Handle role toggle
-  const handleToggleRole = (userId: string) => {
-    setIsProcessing(userId);
-    
-    // Update user role
-    toggleUserRole(userId);
-    
-    // Update the user role in our local state
-    setUsers(prev => 
-      prev.map(user => {
-        if (user.id === userId) {
-          return { ...user, role: user.role === 'admin' ? 'user' : 'admin' };
-        }
-        return user;
-      })
-    );
-    
-    // Close dialog and clear processing state
-    setDialogOpen(false);
-    setTimeout(() => {
+      // Update the user status in our local state
+      setUsers(prev => 
+        prev.map(user => {
+          if (user.id === userId) {
+            const newStatus = user.status === 'active' ? 'blocked' : 'active';
+            
+            toast({
+              title: `User ${newStatus === 'active' ? 'unblocked' : 'blocked'}`,
+              description: `User ${user.name} has been ${newStatus === 'active' ? 'unblocked' : 'blocked'}.`,
+              variant: newStatus === 'active' ? 'default' : 'destructive',
+            });
+            
+            return { ...user, status: newStatus };
+          }
+          return user;
+        })
+      );
+      
+      // Call the auth context method
+      toggleUserStatus(userId);
+      
+      // Clear processing state
       setIsProcessing(null);
     }, 500);
   };
@@ -202,8 +152,8 @@ const UserManagement = () => {
                   />
                 </div>
               </div>
-              <Button onClick={loadUsers}>
-                <User className="h-4 w-4 mr-2" /> Refresh Users
+              <Button>
+                <User className="h-4 w-4 mr-2" /> Add New User
               </Button>
             </div>
             
@@ -239,63 +189,47 @@ const UserManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-4">
-                        Loading users...
+                  {sortedUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {user.role}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button variant="ghost" size="sm">Edit</Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className={user.status === 'active' ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+                            onClick={() => handleToggleStatus(user.id)}
+                            disabled={isProcessing === user.id}
+                          >
+                            {isProcessing === user.id ? (
+                              "Processing..."
+                            ) : user.status === 'active' ? (
+                              'Block'
+                            ) : (
+                              'Unblock'
+                            )}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ) : sortedUsers.length > 0 ? (
-                    sortedUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{user.name}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${
-                              user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {user.role === 'admin' ? <ShieldCheck className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
-                              {user.role}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleOpenEditDialog(user)}
-                            >
-                              Edit
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className={user.status === 'active' ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
-                              onClick={() => handleToggleStatus(user.id)}
-                              disabled={isProcessing === user.id}
-                            >
-                              {isProcessing === user.id ? (
-                                "Processing..."
-                              ) : user.status === 'active' ? (
-                                'Block'
-                              ) : (
-                                'Unblock'
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
+                  ))}
+                  {sortedUsers.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-4">
                         {searchQuery ? `No users found matching "${searchQuery}"` : "No users found"}
@@ -308,88 +242,6 @@ const UserManagement = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Edit User Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Update role and permissions for this user
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedUser && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <h3 className="font-medium">User Information</h3>
-                <div className="grid grid-cols-4 gap-2">
-                  <div className="font-medium text-right">Name:</div>
-                  <div className="col-span-3">{selectedUser.name}</div>
-                  
-                  <div className="font-medium text-right">Email:</div>
-                  <div className="col-span-3">{selectedUser.email}</div>
-                  
-                  <div className="font-medium text-right">Status:</div>
-                  <div className="col-span-3">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      selectedUser.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {selectedUser.status}
-                    </span>
-                  </div>
-                  
-                  <div className="font-medium text-right">Role:</div>
-                  <div className="col-span-3">
-                    <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${
-                      selectedUser.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {selectedUser.role === 'admin' ? <ShieldCheck className="h-3 w-3 mr-1" /> : <Shield className="h-3 w-3 mr-1" />}
-                      {selectedUser.role}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className="font-medium">Role Management</h3>
-                <p className="text-sm text-gray-500">
-                  {selectedUser.role === 'admin' 
-                    ? "Demote this user to a regular user. This will remove administrative privileges." 
-                    : "Promote this user to an admin. This will grant full administrative privileges."}
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            {selectedUser && (
-              <Button 
-                onClick={() => handleToggleRole(selectedUser.id)}
-                variant={selectedUser.role === 'admin' ? "destructive" : "default"}
-                disabled={isProcessing === selectedUser.id}
-              >
-                {isProcessing === selectedUser.id ? (
-                  "Processing..."
-                ) : selectedUser.role === 'admin' ? (
-                  <>
-                    <ShieldX className="h-4 w-4 mr-2" />
-                    Demote to User
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="h-4 w-4 mr-2" />
-                    Promote to Admin
-                  </>
-                )}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
