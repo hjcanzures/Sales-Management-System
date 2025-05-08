@@ -78,7 +78,9 @@ const SignUp = () => {
       // Create user metadata
       const metadata = {
         full_name: values.name,
-        username: values.username
+        username: values.username,
+        role: "user", // Default role for new users
+        status: "active" // Default status for new users
       };
 
       // Sign up with Supabase

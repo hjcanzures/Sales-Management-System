@@ -11,6 +11,7 @@ import { User, UsersIcon, Shield, ShieldCheck, ShieldX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User as UserType } from "@/types";
+import { fetchAllUsers } from "@/services/userManagement";
 
 const UserManagement = () => {
   const { isAdmin, toggleUserStatus, toggleUserRole } = useAuth();
@@ -25,52 +26,18 @@ const UserManagement = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch users from Supabase
-  const fetchUsers = async () => {
+  // Fetch users from our app_users table
+  const loadUsers = async () => {
     setIsLoading(true);
     try {
-      // For Supabase auth users
-      const { data: authUsers, error } = await supabase.auth.admin.listUsers();
-      
-      if (error) {
-        console.error("Error fetching users:", error);
-        // Fall back to mock users if we can't access Supabase auth
-        const mockUsers = [
-          { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", status: "active" },
-          { id: "2", name: "Regular User", email: "user@example.com", role: "user", status: "active" },
-          { id: "3", name: "Blocked User", email: "blocked@example.com", role: "user", status: "blocked" },
-        ];
-        setUsers(mockUsers);
-        toast({
-          title: "Using mock data",
-          description: "Admin API not accessible, using sample data instead.",
-          variant: "default",
-        });
-      } else {
-        // Transform Supabase users to our User type
-        const formattedUsers = authUsers.users.map(user => ({
-          id: user.id,
-          name: user.user_metadata?.name || user.email?.split('@')[0] || "User",
-          email: user.email || "",
-          role: user.user_metadata?.role || "user",
-          status: user.banned ? "blocked" : "active"
-        }));
-        setUsers(formattedUsers);
-      }
+      const fetchedUsers = await fetchAllUsers();
+      setUsers(fetchedUsers);
     } catch (error: any) {
       console.error("Error fetching users:", error);
-      
-      // Fallback to mock data
-      const mockUsers = [
-        { id: "1", name: "Admin User", email: "admin@example.com", role: "admin", status: "active" },
-        { id: "2", name: "Regular User", email: "user@example.com", role: "user", status: "active" },
-        { id: "3", name: "Blocked User", email: "blocked@example.com", role: "user", status: "blocked" },
-      ];
-      setUsers(mockUsers);
       toast({
-        title: "Using mock data",
-        description: "Unable to fetch users: " + error.message,
-        variant: "default",
+        title: "Error fetching users",
+        description: error.message,
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -79,18 +46,22 @@ const UserManagement = () => {
 
   // Fetch users on component mount
   useEffect(() => {
-    fetchUsers();
+    loadUsers();
     
-    // Set up subscription to user changes (sign ups)
-    const authSubscription = supabase.auth.onAuthStateChange((event) => {
-      // Fix the error: Change the comparison to check for valid auth events
-      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'SIGNED_OUT') {
-        fetchUsers();
-      }
-    });
+    // Set up subscription to user changes
+    const channel = supabase.channel('public:app_users')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'app_users' },
+        () => {
+          // Refresh users list when any changes occur to the app_users table
+          loadUsers();
+        }
+      )
+      .subscribe();
     
     return () => {
-      authSubscription.data.subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -128,35 +99,26 @@ const UserManagement = () => {
     }
   };
 
-  // Handle user status toggle with debounce to prevent freezing
+  // Handle user status toggle
   const handleToggleStatus = (userId: string) => {
     // Set processing state to show loading indicator
     setIsProcessing(userId);
     
-    // Simulate API call with slight delay
+    // Update user status
+    toggleUserStatus(userId);
+    
+    // Update the user status in our local state
+    setUsers(prev => 
+      prev.map(user => {
+        if (user.id === userId) {
+          return { ...user, status: user.status === 'active' ? 'blocked' : 'active' };
+        }
+        return user;
+      })
+    );
+    
+    // Clear processing state
     setTimeout(() => {
-      // Update the user status in our local state
-      setUsers(prev => 
-        prev.map(user => {
-          if (user.id === userId) {
-            const newStatus = user.status === 'active' ? 'blocked' : 'active';
-            
-            toast({
-              title: `User ${newStatus === 'active' ? 'unblocked' : 'blocked'}`,
-              description: `User ${user.name} has been ${newStatus === 'active' ? 'unblocked' : 'blocked'}.`,
-              variant: newStatus === 'active' ? 'default' : 'destructive',
-            });
-            
-            return { ...user, status: newStatus };
-          }
-          return user;
-        })
-      );
-      
-      // Call the auth context method
-      toggleUserStatus(userId);
-      
-      // Clear processing state
       setIsProcessing(null);
     }, 500);
   };
@@ -171,34 +133,23 @@ const UserManagement = () => {
   const handleToggleRole = (userId: string) => {
     setIsProcessing(userId);
     
-    // Simulate API call with slight delay
+    // Update user role
+    toggleUserRole(userId);
+    
+    // Update the user role in our local state
+    setUsers(prev => 
+      prev.map(user => {
+        if (user.id === userId) {
+          return { ...user, role: user.role === 'admin' ? 'user' : 'admin' };
+        }
+        return user;
+      })
+    );
+    
+    // Close dialog and clear processing state
+    setDialogOpen(false);
     setTimeout(() => {
-      // Update the user role in our local state
-      setUsers(prev => 
-        prev.map(user => {
-          if (user.id === userId) {
-            const newRole = user.role === 'admin' ? 'user' : 'admin';
-            
-            toast({
-              title: `User role updated`,
-              description: `${user.name}'s role has been changed to ${newRole}.`,
-            });
-            
-            return { ...user, role: newRole };
-          }
-          return user;
-        })
-      );
-      
-      // Call the auth context method
-      toggleUserRole(userId);
-      
-      // Close dialog and clear processing state
-      setDialogOpen(false);
       setIsProcessing(null);
-      
-      // Refresh the users list
-      fetchUsers();
     }, 500);
   };
 
@@ -252,7 +203,7 @@ const UserManagement = () => {
                   />
                 </div>
               </div>
-              <Button onClick={fetchUsers}>
+              <Button onClick={loadUsers}>
                 <User className="h-4 w-4 mr-2" /> Refresh Users
               </Button>
             </div>

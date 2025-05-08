@@ -1,8 +1,10 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
-import { users } from "@/lib/mockData";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { syncUserToDatabase } from "@/services/userManagement";
+import { toast } from "sonner";
 
 interface AuthContextType {
   user: User | null;
@@ -45,23 +47,66 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
 
   // Check for Supabase session on load
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (session) {
+          // Get user data from Supabase Auth
           const userData = {
             id: session.user.id,
-            name: session.user.user_metadata.full_name || "User",
+            name: session.user.user_metadata.full_name || session.user.user_metadata.name || session.user.email?.split('@')[0] || "User",
             email: session.user.email || "",
             role: session.user.user_metadata.role || "user",
-            status: "active",
-            username: session.user.user_metadata.username || "",
+            status: session.user.user_metadata.status || "active",
           };
+          
+          // Set user state immediately
           setUser(userData);
+          
+          // After setting user state, sync to database in a setTimeout to avoid auth deadlocks
+          setTimeout(async () => {
+            try {
+              // Sync user to our app_users table
+              await syncUserToDatabase({
+                id: userData.id,
+                email: userData.email,
+                name: userData.name,
+                role: userData.role,
+                status: userData.status,
+              });
+              
+              // Now fetch the latest user data from our app_users table
+              const { data: appUser, error: appUserError } = await supabase
+                .from('app_users')
+                .select('*')
+                .eq('id', userData.id)
+                .single();
+              
+              if (appUserError) {
+                console.error("Error fetching app_user:", appUserError);
+              } else if (appUser) {
+                // Update user state with data from app_users table (which may include status changes)
+                setUser({
+                  ...userData,
+                  role: appUser.role || userData.role,
+                  status: appUser.status || userData.status
+                });
+                
+                // Check if user is blocked
+                if (appUser.status === 'blocked') {
+                  toast.error("Your account has been blocked. Please contact an administrator.");
+                  await supabase.auth.signOut();
+                  setUser(null);
+                }
+              }
+            } catch (error) {
+              console.error("Error syncing user to database:", error);
+            }
+          }, 0);
         } else {
           setUser(null);
         }
@@ -74,13 +119,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session) {
         const userData = {
           id: session.user.id,
-          name: session.user.user_metadata.full_name || "User",
+          name: session.user.user_metadata.full_name || session.user.user_metadata.name || session.user.email?.split('@')[0] || "User",
           email: session.user.email || "",
           role: session.user.user_metadata.role || "user",
           status: "active",
-          username: session.user.user_metadata.username || "",
         };
+        
         setUser(userData);
+        
+        // After setting user state, sync to database in a setTimeout to avoid auth deadlocks
+        setTimeout(async () => {
+          try {
+            // Sync user to our app_users table
+            await syncUserToDatabase({
+              id: userData.id,
+              email: userData.email,
+              name: userData.name,
+              role: userData.role,
+              status: userData.status,
+            });
+            
+            // Now fetch the latest user data from our app_users table
+            const { data: appUser, error: appUserError } = await supabase
+              .from('app_users')
+              .select('*')
+              .eq('id', userData.id)
+              .single();
+            
+            if (appUserError) {
+              console.error("Error fetching app_user:", appUserError);
+            } else if (appUser) {
+              // Update user state with data from app_users table (which may include status changes)
+              setUser({
+                ...userData,
+                role: appUser.role || userData.role,
+                status: appUser.status || userData.status
+              });
+              
+              // Check if user is blocked
+              if (appUser.status === 'blocked') {
+                toast.error("Your account has been blocked. Please contact an administrator.");
+                await supabase.auth.signOut();
+                setUser(null);
+              }
+            }
+          } catch (error) {
+            console.error("Error syncing user to database:", error);
+          }
+        }, 0);
       }
       setLoading(false);
     });
@@ -88,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fallback to mock login if Supabase auth fails or for demo purposes
+  // Login function that works with Supabase and falls back to mock data
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
     
@@ -108,26 +194,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (user && password === "password" && user.status === "active") {
           setUser(user);
           localStorage.setItem("user", JSON.stringify(user));
-          toast({
-            title: "Login successful",
-            description: `Welcome back, ${user.name}!`,
-          });
+          toast.success("Welcome back, " + user.name + "!");
           setLoading(false);
           return true;
         } else if (user && user.status === "blocked") {
-          toast({
-            title: "Account blocked",
-            description: "Your account has been blocked. Please contact an administrator.",
-            variant: "destructive",
-          });
+          toast.error("Account blocked. Please contact an administrator.");
           setLoading(false);
           return false;
         } else {
-          toast({
-            title: "Login failed",
-            description: "Invalid email or password",
-            variant: "destructive",
-          });
+          toast.error("Invalid email or password");
           setLoading(false);
           return false;
         }
@@ -135,21 +210,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Supabase auth success
       if (data.user) {
-        const userData = {
-          id: data.user.id,
-          name: data.user.user_metadata.full_name || "User",
-          email: data.user.email || "",
-          role: data.user.user_metadata.role || "user",
-          status: "active",
-          username: data.user.user_metadata.username || "",
-        };
-        setUser(userData);
-        
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${userData.name}!`,
-        });
-        
+        // We'll check app_users table for user status in the onAuthStateChange listener
+        toast.success(`Welcome back, ${data.user.user_metadata.full_name || data.user.email?.split('@')[0] || "User"}!`);
         setLoading(false);
         return true;
       }
@@ -158,11 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     } catch (error: any) {
       console.error("Login error:", error);
-      toast({
-        title: "Login error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
       setLoading(false);
       return false;
     }
@@ -178,122 +236,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setUser(null);
       
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
+      toast.success("You have been successfully logged out");
     } catch (error: any) {
       console.error("Logout error:", error);
-      toast({
-        title: "Logout error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     }
   };
 
   // Function to toggle user status (block/unblock)
-  const toggleUserStatus = (userId: string) => {
-    const updatedUsers = enhancedUsers.map(u => {
-      if (u.id === userId) {
-        const newStatus = u.status === "active" ? "blocked" : "active";
-        return { ...u, status: newStatus };
+  const toggleUserStatus = async (userId: string) => {
+    try {
+      if (user && user.id === userId) {
+        toast.error("You cannot block your own account");
+        return;
       }
-      return u;
-    });
-    
-    // Update our enhancedUsers array
-    for (let i = 0; i < enhancedUsers.length; i++) {
-      if (enhancedUsers[i].id === userId) {
-        enhancedUsers[i].status = enhancedUsers[i].status === "active" ? "blocked" : "active";
-        break;
+      
+      // Get current user status
+      const { data: userData, error: userError } = await supabase
+        .from('app_users')
+        .select('status')
+        .eq('id', userId)
+        .single();
+      
+      if (userError) {
+        console.error("Error fetching user status:", userError);
+        toast.error("Failed to toggle user status");
+        return;
       }
+      
+      const currentStatus = userData?.status || 'active';
+      const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
+      
+      // Update status in app_users table
+      const { error: updateError } = await supabase
+        .from('app_users')
+        .update({ status: newStatus })
+        .eq('id', userId);
+      
+      if (updateError) {
+        console.error("Error updating user status:", updateError);
+        toast.error("Failed to toggle user status");
+        return;
+      }
+      
+      toast.success(`User has been ${newStatus === 'active' ? 'unblocked' : 'blocked'}`);
+    } catch (error: any) {
+      console.error("Error toggling user status:", error);
+      toast.error(error.message);
     }
-    
-    // If the current user is being toggled, update their status
-    if (user && user.id === userId) {
-      const updatedUser = { ...user, status: user.status === "active" ? "blocked" : "active" };
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-    }
-    
-    toast({
-      title: "User status updated",
-      description: `User has been ${enhancedUsers.find(u => u.id === userId)?.status === "active" ? "unblocked" : "blocked"}`,
-    });
   };
 
   // Function to toggle user role (admin/user)
   const toggleUserRole = async (userId: string) => {
-    // For mock users
-    const mockUser = enhancedUsers.find(u => u.id === userId);
-    if (mockUser) {
-      const newRole = mockUser.role === "admin" ? "user" : "admin";
+    try {
+      // Get current user role
+      const { data: userData, error: userError } = await supabase
+        .from('app_users')
+        .select('role')
+        .eq('id', userId)
+        .single();
       
-      // Update the mock user array
-      for (let i = 0; i < enhancedUsers.length; i++) {
-        if (enhancedUsers[i].id === userId) {
-          enhancedUsers[i].role = newRole;
-          break;
+      if (userError) {
+        console.error("Error fetching user role:", userError);
+        toast.error("Failed to toggle user role");
+        return;
+      }
+      
+      const currentRole = userData?.role || 'user';
+      const newRole = currentRole === 'admin' ? 'user' : 'admin';
+      
+      // Update role in app_users table
+      const { error: updateError } = await supabase
+        .from('app_users')
+        .update({ role: newRole })
+        .eq('id', userId);
+      
+      if (updateError) {
+        console.error("Error updating user role:", updateError);
+        toast.error("Failed to toggle user role");
+        return;
+      }
+      
+      // If the current user is being toggled, update their role in Supabase Auth metadata
+      if (user && user.id === userId) {
+        try {
+          await supabase.auth.updateUser({
+            data: { role: newRole }
+          });
+          
+          // Update local user state
+          setUser({
+            ...user,
+            role: newRole
+          });
+        } catch (error) {
+          console.error("Error updating auth user metadata:", error);
         }
       }
       
-      // If the current user is being toggled, update their role
-      if (user && user.id === userId) {
-        const updatedUser = { ...user, role: newRole };
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-      }
-      
-      toast({
-        title: "User role updated",
-        description: `User has been ${newRole === "admin" ? "promoted to admin" : "demoted to regular user"}`,
-      });
-      
-      return;
-    }
-    
-    // For Supabase users
-    try {
-      if (user && user.id === userId) {
-        // Get current user metadata
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (!currentUser) throw new Error("User not found");
-        
-        const currentRole = currentUser.user_metadata.role || "user";
-        const newRole = currentRole === "admin" ? "user" : "admin";
-        
-        // Update user metadata
-        const { error } = await supabase.auth.updateUser({
-          data: { 
-            role: newRole 
-          }
-        });
-        
-        if (error) throw error;
-        
-        // Update local state
-        const updatedUser = { ...user, role: newRole };
-        setUser(updatedUser);
-        
-        toast({
-          title: "Your role updated",
-          description: `You are now a ${newRole}`,
-        });
-      } else {
-        // For simplicity in this demo, we'll just show a toast that this would update another user's role
-        toast({
-          title: "Role change simulated",
-          description: "In a production app, this would update the user's role in the database",
-        });
-      }
+      toast.success(`User role updated to ${newRole}`);
     } catch (error: any) {
-      console.error("Role update error:", error);
-      toast({
-        title: "Role update failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      console.error("Error toggling user role:", error);
+      toast.error(error.message);
     }
   };
 
