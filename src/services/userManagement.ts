@@ -32,10 +32,9 @@ export type AppUser = {
 // Function to fetch all users from app_users table
 export const fetchAllUsers = async (): Promise<User[]> => {
   try {
-    // Fetch users from app_users table
-    const { data: appUsers, error } = await supabase
-      .from('app_users')
-      .select('*');
+    // Using raw query instead of Supabase query builder
+    // This approach bypasses the TypeScript issues with table name recognition
+    const { data: appUsers, error } = await supabase.rpc('get_app_users');
     
     if (error) {
       console.error("Error fetching users from app_users table:", error);
@@ -66,10 +65,11 @@ export const toggleUserStatus = async (userId: string, currentStatus: string): P
   try {
     const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
     
-    const { error } = await supabase
-      .from('app_users')
-      .update({ status: newStatus })
-      .eq('id', userId);
+    // Using raw query to update user status
+    const { error } = await supabase.rpc('toggle_user_status', { 
+      user_id: userId, 
+      new_status: newStatus 
+    });
     
     if (error) {
       console.error("Error updating user status:", error);
@@ -91,10 +91,11 @@ export const toggleUserRole = async (userId: string, currentRole: string): Promi
   try {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     
-    const { error } = await supabase
-      .from('app_users')
-      .update({ role: newRole })
-      .eq('id', userId);
+    // Using raw query to update user role
+    const { error } = await supabase.rpc('toggle_user_role', { 
+      user_id: userId, 
+      new_role: newRole 
+    });
     
     if (error) {
       console.error("Error updating user role:", error);
@@ -129,53 +130,18 @@ export const syncUserToDatabase = async (user: {
   status?: string;
 }): Promise<boolean> => {
   try {
-    // Check if user already exists
-    const { data: existingUser, error: checkError } = await supabase
-      .from('app_users')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    // Use RPC function to sync user to database
+    const { error } = await supabase.rpc('sync_user_to_database', {
+      p_id: user.id,
+      p_email: user.email,
+      p_name: user.name || user.email.split('@')[0],
+      p_role: user.role || 'user',
+      p_status: user.status || 'active'
+    });
     
-    if (checkError && checkError.code !== 'PGRST116') { // Not found is okay
-      console.error("Error checking existing user:", checkError);
+    if (error) {
+      console.error("Error syncing user to database:", error);
       return false;
-    }
-    
-    // If user exists, update their data
-    if (existingUser) {
-      const { error: updateError } = await supabase
-        .from('app_users')
-        .update({
-          email: user.email,
-          name: user.name,
-          role: user.role || existingUser.role,
-          status: user.status || existingUser.status,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-      
-      if (updateError) {
-        console.error("Error updating user in database:", updateError);
-        return false;
-      }
-    } else {
-      // If user doesn't exist, create new entry
-      const { error: insertError } = await supabase
-        .from('app_users')
-        .insert({
-          id: user.id,
-          email: user.email,
-          name: user.name || user.email.split('@')[0],
-          role: user.role || 'user',
-          status: user.status || 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      
-      if (insertError) {
-        console.error("Error inserting user in database:", insertError);
-        return false;
-      }
     }
     
     return true;

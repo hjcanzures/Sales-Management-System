@@ -79,26 +79,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 status: userData.status,
               });
               
-              // Now fetch the latest user data from our app_users table using the generic query builder
-              const { data: appUser, error: appUserError } = await supabase
-                .from('app_users')
-                .select('*')
-                .eq('id', userData.id)
-                .single();
+              // Now fetch the latest user data using an RPC function
+              const { data, error } = await supabase.rpc('get_user_by_id', { user_id: userData.id });
               
-              if (appUserError) {
-                console.error("Error fetching app_user:", appUserError);
-              } else if (appUser) {
-                const typedAppUser = appUser as AppUser;
+              if (error) {
+                console.error("Error fetching app_user:", error);
+              } else if (data && data.length > 0) {
+                const appUser = data[0] as AppUser;
                 // Update user state with data from app_users table (which may include status changes)
                 setUser({
                   ...userData,
-                  role: typedAppUser.role || userData.role,
-                  status: typedAppUser.status || userData.status
+                  role: appUser.role || userData.role,
+                  status: appUser.status || userData.status
                 });
                 
                 // Check if user is blocked
-                if (typedAppUser.status === 'blocked') {
+                if (appUser.status === 'blocked') {
                   toast.error("Your account has been blocked. Please contact an administrator.");
                   await supabase.auth.signOut();
                   setUser(null);
@@ -140,26 +136,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               status: userData.status,
             });
             
-            // Now fetch the latest user data from our app_users table using the generic query builder
-            const { data: appUser, error: appUserError } = await supabase
-              .from('app_users')
-              .select('*')
-              .eq('id', userData.id)
-              .single();
+            // Now fetch the latest user data using an RPC function
+            const { data, error } = await supabase.rpc('get_user_by_id', { user_id: userData.id });
             
-            if (appUserError) {
-              console.error("Error fetching app_user:", appUserError);
-            } else if (appUser) {
-              const typedAppUser = appUser as AppUser;
+            if (error) {
+              console.error("Error fetching app_user:", error);
+            } else if (data && data.length > 0) {
+              const appUser = data[0] as AppUser;
               // Update user state with data from app_users table (which may include status changes)
               setUser({
                 ...userData,
-                role: typedAppUser.role || userData.role,
-                status: typedAppUser.status || userData.status
+                role: appUser.role || userData.role,
+                status: appUser.status || userData.status
               });
               
               // Check if user is blocked
-              if (typedAppUser.status === 'blocked') {
+              if (appUser.status === 'blocked') {
                 toast.error("Your account has been blocked. Please contact an administrator.");
                 await supabase.auth.signOut();
                 setUser(null);
@@ -253,28 +245,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Get current user status using the generic query builder
-      const { data: userData, error: userError } = await supabase
-        .from('app_users')
-        .select('status')
-        .eq('id', userId)
-        .single();
+      // Get current user status using RPC
+      const { data, error } = await supabase.rpc('get_user_status', { user_id: userId });
       
-      if (userError) {
-        console.error("Error fetching user status:", userError);
+      if (error) {
+        console.error("Error fetching user status:", error);
         toast.error("Failed to toggle user status");
         return;
       }
       
-      const appUser = userData as AppUser;
-      const currentStatus = appUser.status || 'active';
+      const currentStatus = data || 'active';
       const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
       
-      // Update status in app_users table
-      const { error: updateError } = await supabase
-        .from('app_users')
-        .update({ status: newStatus })
-        .eq('id', userId);
+      // Update status using RPC
+      const { error: updateError } = await supabase.rpc('update_user_status', { 
+        user_id: userId,
+        new_status: newStatus
+      });
       
       if (updateError) {
         console.error("Error updating user status:", updateError);
@@ -292,28 +279,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Function to toggle user role (admin/user)
   const toggleUserRole = async (userId: string) => {
     try {
-      // Get current user role using the generic query builder
-      const { data: userData, error: userError } = await supabase
-        .from('app_users')
-        .select('role')
-        .eq('id', userId)
-        .single();
+      // Get current user role using RPC
+      const { data, error } = await supabase.rpc('get_user_role', { user_id: userId });
       
-      if (userError) {
-        console.error("Error fetching user role:", userError);
+      if (error) {
+        console.error("Error fetching user role:", error);
         toast.error("Failed to toggle user role");
         return;
       }
       
-      const appUser = userData as AppUser;
-      const currentRole = appUser.role || 'user';
+      const currentRole = data || 'user';
       const newRole = currentRole === 'admin' ? 'user' : 'admin';
       
-      // Update role in app_users table
-      const { error: updateError } = await supabase
-        .from('app_users')
-        .update({ role: newRole })
-        .eq('id', userId);
+      // Update role using RPC
+      const { error: updateError } = await supabase.rpc('update_user_role', {
+        user_id: userId,
+        new_role: newRole
+      });
       
       if (updateError) {
         console.error("Error updating user role:", updateError);
