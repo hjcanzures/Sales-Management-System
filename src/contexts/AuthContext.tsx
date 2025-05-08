@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { syncUserToDatabase } from "@/services/userManagement";
+import { syncUserToDatabase, AppUser } from "@/services/userManagement";
 import { toast } from "sonner";
 
 interface AuthContextType {
@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 status: userData.status,
               });
               
-              // Now fetch the latest user data from our app_users table
+              // Now fetch the latest user data from our app_users table using the generic query builder
               const { data: appUser, error: appUserError } = await supabase
                 .from('app_users')
                 .select('*')
@@ -89,15 +89,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (appUserError) {
                 console.error("Error fetching app_user:", appUserError);
               } else if (appUser) {
+                const typedAppUser = appUser as AppUser;
                 // Update user state with data from app_users table (which may include status changes)
                 setUser({
                   ...userData,
-                  role: appUser.role || userData.role,
-                  status: appUser.status || userData.status
+                  role: typedAppUser.role || userData.role,
+                  status: typedAppUser.status || userData.status
                 });
                 
                 // Check if user is blocked
-                if (appUser.status === 'blocked') {
+                if (typedAppUser.status === 'blocked') {
                   toast.error("Your account has been blocked. Please contact an administrator.");
                   await supabase.auth.signOut();
                   setUser(null);
@@ -139,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               status: userData.status,
             });
             
-            // Now fetch the latest user data from our app_users table
+            // Now fetch the latest user data from our app_users table using the generic query builder
             const { data: appUser, error: appUserError } = await supabase
               .from('app_users')
               .select('*')
@@ -149,15 +150,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (appUserError) {
               console.error("Error fetching app_user:", appUserError);
             } else if (appUser) {
+              const typedAppUser = appUser as AppUser;
               // Update user state with data from app_users table (which may include status changes)
               setUser({
                 ...userData,
-                role: appUser.role || userData.role,
-                status: appUser.status || userData.status
+                role: typedAppUser.role || userData.role,
+                status: typedAppUser.status || userData.status
               });
               
               // Check if user is blocked
-              if (appUser.status === 'blocked') {
+              if (typedAppUser.status === 'blocked') {
                 toast.error("Your account has been blocked. Please contact an administrator.");
                 await supabase.auth.signOut();
                 setUser(null);
@@ -251,7 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Get current user status
+      // Get current user status using the generic query builder
       const { data: userData, error: userError } = await supabase
         .from('app_users')
         .select('status')
@@ -264,7 +266,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      const currentStatus = userData?.status || 'active';
+      const appUser = userData as AppUser;
+      const currentStatus = appUser.status || 'active';
       const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
       
       // Update status in app_users table
@@ -289,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Function to toggle user role (admin/user)
   const toggleUserRole = async (userId: string) => {
     try {
-      // Get current user role
+      // Get current user role using the generic query builder
       const { data: userData, error: userError } = await supabase
         .from('app_users')
         .select('role')
@@ -302,7 +305,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      const currentRole = userData?.role || 'user';
+      const appUser = userData as AppUser;
+      const currentRole = appUser.role || 'user';
       const newRole = currentRole === 'admin' ? 'user' : 'admin';
       
       // Update role in app_users table

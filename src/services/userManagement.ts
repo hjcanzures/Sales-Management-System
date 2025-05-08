@@ -18,22 +18,33 @@ export type SupabaseUser = {
   };
 }
 
-// Function to fetch all users from Auth table and store in the database
+// Type for app_users table
+export type AppUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Function to fetch all users from app_users table
 export const fetchAllUsers = async (): Promise<User[]> => {
   try {
-    // First try to fetch existing users from public.app_users table
-    const { data: existingUsers, error: existingUsersError } = await supabase
+    // Fetch users from app_users table
+    const { data: appUsers, error } = await supabase
       .from('app_users')
       .select('*');
     
-    if (existingUsersError) {
-      console.error("Error fetching users from app_users table:", existingUsersError);
+    if (error) {
+      console.error("Error fetching users from app_users table:", error);
       // Fall back to mock data for development
       return getMockUsers();
     }
 
-    if (existingUsers && existingUsers.length > 0) {
-      return existingUsers.map((user) => ({
+    if (appUsers && appUsers.length > 0) {
+      return appUsers.map((user: AppUser) => ({
         id: user.id,
         name: user.name || user.email?.split('@')[0] || "User",
         email: user.email || "",
@@ -42,7 +53,7 @@ export const fetchAllUsers = async (): Promise<User[]> => {
       }));
     }
     
-    // If no users found, try to sync from Auth and fall back to mock data if needed
+    // If no users found, fall back to mock data
     return getMockUsers();
   } catch (error) {
     console.error("Error in fetchAllUsers:", error);
@@ -62,12 +73,15 @@ export const toggleUserStatus = async (userId: string, currentStatus: string): P
     
     if (error) {
       console.error("Error updating user status:", error);
+      toast.error("Error updating user status: " + error.message);
       return false;
     }
     
+    toast.success(`User ${newStatus === 'active' ? 'unblocked' : 'blocked'} successfully`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error toggling user status:", error);
+    toast.error("Error toggling user status: " + error.message);
     return false;
   }
 };
@@ -84,12 +98,15 @@ export const toggleUserRole = async (userId: string, currentRole: string): Promi
     
     if (error) {
       console.error("Error updating user role:", error);
+      toast.error("Error updating user role: " + error.message);
       return false;
     }
     
+    toast.success(`User role updated to ${newRole} successfully`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error toggling user role:", error);
+    toast.error("Error toggling user role: " + error.message);
     return false;
   }
 };
