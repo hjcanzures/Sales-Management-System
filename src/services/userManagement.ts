@@ -32,9 +32,11 @@ export type AppUser = {
 // Function to fetch all users from app_users table
 export const fetchAllUsers = async (): Promise<User[]> => {
   try {
-    // Using raw query instead of Supabase query builder
-    // This approach bypasses the TypeScript issues with table name recognition
-    const { data: appUsers, error } = await supabase.rpc('get_app_users');
+    // Using the function call approach for RPC to avoid typing issues
+    const { data, error } = await supabase.functions.invoke('get_app_users') as {
+      data: AppUser[] | null;
+      error: any;
+    };
     
     if (error) {
       console.error("Error fetching users from app_users table:", error);
@@ -42,8 +44,8 @@ export const fetchAllUsers = async (): Promise<User[]> => {
       return getMockUsers();
     }
 
-    if (appUsers && appUsers.length > 0) {
-      return appUsers.map((user: AppUser) => ({
+    if (data && data.length > 0) {
+      return data.map((user: AppUser) => ({
         id: user.id,
         name: user.name || user.email?.split('@')[0] || "User",
         email: user.email || "",
@@ -65,10 +67,9 @@ export const toggleUserStatus = async (userId: string, currentStatus: string): P
   try {
     const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
     
-    // Using raw query to update user status
-    const { error } = await supabase.rpc('toggle_user_status', { 
-      user_id: userId, 
-      new_status: newStatus 
+    // Using the function call approach for RPC to avoid typing issues
+    const { error } = await supabase.functions.invoke('toggle_user_status', {
+      body: { user_id: userId, new_status: newStatus }
     });
     
     if (error) {
@@ -91,10 +92,9 @@ export const toggleUserRole = async (userId: string, currentRole: string): Promi
   try {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     
-    // Using raw query to update user role
-    const { error } = await supabase.rpc('toggle_user_role', { 
-      user_id: userId, 
-      new_role: newRole 
+    // Using the function call approach for RPC to avoid typing issues
+    const { error } = await supabase.functions.invoke('toggle_user_role', {
+      body: { user_id: userId, new_role: newRole }
     });
     
     if (error) {
@@ -130,13 +130,15 @@ export const syncUserToDatabase = async (user: {
   status?: string;
 }): Promise<boolean> => {
   try {
-    // Use RPC function to sync user to database
-    const { error } = await supabase.rpc('sync_user_to_database', {
-      p_id: user.id,
-      p_email: user.email,
-      p_name: user.name || user.email.split('@')[0],
-      p_role: user.role || 'user',
-      p_status: user.status || 'active'
+    // Using the function call approach for RPC to avoid typing issues
+    const { error } = await supabase.functions.invoke('sync_user_to_database', {
+      body: {
+        p_id: user.id,
+        p_email: user.email,
+        p_name: user.name || user.email.split('@')[0],
+        p_role: user.role || 'user',
+        p_status: user.status || 'active'
+      }
     });
     
     if (error) {

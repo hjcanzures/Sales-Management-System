@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -49,7 +48,7 @@ const UserManagement = () => {
     loadUsers();
     
     // Set up subscription to user changes
-    const channel = supabase.channel('public:app_users')
+    const channel = supabase.channel('schema-db-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'app_users' },

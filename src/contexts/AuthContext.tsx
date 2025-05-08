@@ -79,8 +79,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 status: userData.status,
               });
               
-              // Now fetch the latest user data using an RPC function
-              const { data, error } = await supabase.rpc('get_user_by_id', { user_id: userData.id });
+              // Now fetch the latest user data using a function call for RPC
+              const { data, error } = await supabase.functions.invoke('get_user_by_id', {
+                body: { user_id: userData.id }
+              }) as { data: AppUser[] | null, error: any };
               
               if (error) {
                 console.error("Error fetching app_user:", error);
@@ -136,8 +138,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               status: userData.status,
             });
             
-            // Now fetch the latest user data using an RPC function
-            const { data, error } = await supabase.rpc('get_user_by_id', { user_id: userData.id });
+            // Now fetch the latest user data using a function call for RPC
+            const { data, error } = await supabase.functions.invoke('get_user_by_id', {
+              body: { user_id: userData.id }
+            }) as { data: AppUser[] | null, error: any };
             
             if (error) {
               console.error("Error fetching app_user:", error);
@@ -245,8 +249,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Get current user status using RPC
-      const { data, error } = await supabase.rpc('get_user_status', { user_id: userId });
+      // Get current user status using a function call for RPC
+      const { data, error } = await supabase.functions.invoke('get_user_status', {
+        body: { user_id: userId }
+      }) as { data: string | null, error: any };
       
       if (error) {
         console.error("Error fetching user status:", error);
@@ -257,10 +263,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currentStatus = data || 'active';
       const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
       
-      // Update status using RPC
-      const { error: updateError } = await supabase.rpc('update_user_status', { 
-        user_id: userId,
-        new_status: newStatus
+      // Update status using a function call for RPC
+      const { error: updateError } = await supabase.functions.invoke('update_user_status', {
+        body: { user_id: userId, new_status: newStatus }
       });
       
       if (updateError) {
@@ -279,8 +284,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Function to toggle user role (admin/user)
   const toggleUserRole = async (userId: string) => {
     try {
-      // Get current user role using RPC
-      const { data, error } = await supabase.rpc('get_user_role', { user_id: userId });
+      // Get current user role using a function call for RPC
+      const { data, error } = await supabase.functions.invoke('get_user_role', {
+        body: { user_id: userId }
+      }) as { data: string | null, error: any };
       
       if (error) {
         console.error("Error fetching user role:", error);
@@ -291,10 +298,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currentRole = data || 'user';
       const newRole = currentRole === 'admin' ? 'user' : 'admin';
       
-      // Update role using RPC
-      const { error: updateError } = await supabase.rpc('update_user_role', {
-        user_id: userId,
-        new_role: newRole
+      // Update role using a function call for RPC
+      const { error: updateError } = await supabase.functions.invoke('update_user_role', {
+        body: { user_id: userId, new_role: newRole }
       });
       
       if (updateError) {

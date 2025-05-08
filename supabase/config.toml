@@ -1,1 +1,29 @@
+
 project_id = "ktuwufktpgnrsvdlhhfy"
+
+[functions.get_app_users]
+verify_jwt = true
+
+[functions.get_user_by_id]
+verify_jwt = true
+
+[functions.get_user_status]
+verify_jwt = true
+
+[functions.get_user_role]
+verify_jwt = true
+
+[functions.update_user_status]
+verify_jwt = true
+
+[functions.update_user_role]
+verify_jwt = true
+
+[functions.toggle_user_status]
+verify_jwt = true
+
+[functions.toggle_user_role]
+verify_jwt = true
+
+[functions.sync_user_to_database]
+verify_jwt = true
